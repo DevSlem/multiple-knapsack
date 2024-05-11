@@ -93,7 +93,12 @@ class DQN:
         if np.random.rand() < self.eps:
             return np.random.randint(self.n_actions)
         
-        obs = torch.tensor(obs, dtype=torch.float32).to(self.device)
+        if not isinstance(obs, torch.Tensor):
+            obs = torch.tensor(obs, dtype=torch.float32).to(self.device)
+        else:
+            # 이미 텐서일 경우, clone().detach()를 사용하여 연산 그래프로부터 분리
+            obs = obs.clone().detach().to(self.device)
+        # obs = torch.tensor(obs, dtype=torch.float32).to(self.device)
         q_values = self.q_network(obs)
         return torch.argmax(q_values, dim=-1).cpu().numpy()
     
