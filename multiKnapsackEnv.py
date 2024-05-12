@@ -31,13 +31,22 @@ class MultiKnapsackEnv(gym.Env):
         self.reset()
 
     def prepare_state(self):
-        item_values = torch.as_tensor(self.state['item_values'], dtype=torch.float32)
-        item_weights = torch.as_tensor(self.state['item_weights'], dtype=torch.float32)
-        remaining_capacities = torch.as_tensor(self.state['remaining_capacities'], dtype=torch.float32)
-        selection_status = torch.as_tensor(self.state['selection_status'], dtype=torch.float32)
+        item_values = np.array(self.state['item_values'], dtype=np.float32)
+        item_weights = np.array(self.state['item_weights'], dtype=np.float32)
+        remaining_capacities = np.array(self.state['remaining_capacities'], dtype=np.float32)
+        selection_status = np.array(self.state['selection_status'], dtype=np.float32)
         
-        return torch.cat([item_values, item_weights, remaining_capacities, selection_status])
-    
+        ret = np.concatenate([item_values, item_weights, remaining_capacities, selection_status])
+        ret = ret.reshape(1, len(ret))
+        return ret
+        # item_values = torch.as_tensor(self.state['item_values'], dtype=torch.float32)
+        # item_weights = torch.as_tensor(self.state['item_weights'], dtype=torch.float32)
+        # remaining_capacities = torch.as_tensor(self.state['remaining_capacities'], dtype=torch.float32)
+        # selection_status = torch.as_tensor(self.state['selection_status'], dtype=torch.float32)
+        
+        # ret = torch.cat([item_values, item_weights, remaining_capacities, selection_status])
+
+        # return ret.reshape(1, len(ret))
     def reset(self):
         self.state = {
             'item_values': self.items[:, 0],

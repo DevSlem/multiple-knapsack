@@ -95,8 +95,7 @@ class DQN:
         # nonselectability_flags = [0, 1, 0]
         # in this case, k0i1 and k1i1 are non-selectable
         nonselectability_flags = obs[:, -self.n_nonselectability_flags:]
-        nonselectable_mask = np.repeat(nonselectability_flags, self.n_actions // self.n_nonselectability_flags, axis=-1).astype(bool)
-        
+        nonselectable_mask = np.concatenate([nonselectability_flags for _ in range(self.n_actions // self.n_nonselectability_flags)], axis=-1).astype(bool)
         if np.random.rand() < self.eps:
             rand_logits = np.random.rand(obs.shape[0], self.n_actions)
             rand_logits[nonselectable_mask] = -float('inf')
