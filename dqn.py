@@ -109,7 +109,7 @@ class DQN:
             obs = obs.clone().detach().to(self.device)
         # obs = torch.tensor(obs, dtype=torch.float32).to(self.device)
         q_values = self.q_network(obs)
-        q_values[nonselectable_mask] = -float('inf')
+        q_values[torch.from_numpy(nonselectable_mask)] = -float('inf')
         return torch.argmax(q_values, dim=-1).cpu().numpy()
     
     def update(self, obs: np.ndarray, action: np.ndarray, next_obs: np.ndarray, reward: np.ndarray, terminated: np.ndarray):
