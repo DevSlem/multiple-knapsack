@@ -7,28 +7,22 @@ import matplotlib.pyplot as plt
 from multiKnapsackEnv import *
 from dqn import *
 
-def load_data(filename):
-    data = {}
-    itmes = []
-    with open(filename, 'r') as file:
-        for line in file:
-            line = line.strip()
-            if not line:  # 빈 라인 스킵
-                continue
-            key, value = line.strip().split(' = ')
-            # 세미콜론 제거 및 공백 제거
-            value = value.strip(';').strip()
-            # eval 대신 안전한 ast.literal_eval 사용
-            try:
-                import ast
-                data[key] = ast.literal_eval(value)
-            except ValueError as e:
-                print(f"Error parsing {value}: {e}")
-    return data['NbItems'], data['NbKnapsacks'], np.asarray(data['capacity']), np.asarray(data['value']), np.asarray(data['weight'])
+import argparse
+from util import make_directory, load_knapsack_problem
 
-for i in range(1, 2):
-    num_items, num_knapsacks, capacities, values, weights = load_data('data/data_%d.dat' % i)
-    # num_items, num_knapsacks, capacities, values, weights = load_data('/content/data_1.dat')
+import time
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("problem_name", type=str)
+    args = parser.parse_args()
+    problem_name = args.problem_name
+
+    knapsack_df, item_df = load_knapsack_problem(problem_name)
+    capacities = knapsack_df['capacity'].values
+    values = item_df['value'].values
+    weights = item_df['weight'].values
+
     items = []
     for i in range(len(values)):
         items.append((values[i], weights[i]))
@@ -36,10 +30,10 @@ for i in range(1, 2):
     env = MultiKnapsackEnv(items, capacities)
 
     EPISODES = 300
-    dqn = DQN(2 * num_items + num_knapsacks + num_items, num_items * num_knapsacks)
+    dqn = DQN(2 * len(values) + len(capacities) + len(values), len(values) * len(capacities))
     td_loss_list = []
     cumulative_reward_list = []
-    value_list = []
+    start_time = time.time()
     for e in range(EPISODES):
         print(e)
         obs = env.reset()
@@ -65,18 +59,13 @@ for i in range(1, 2):
             # transition to the next state
             obs = next_obs
             cumulative_reward += reward[0]
-            print(cumulative_reward)
+            print(f'cumulative_reward : {cumulative_reward}')
 
-        value = 0
-        for i in range(num_items):
-            if obs[0][i] > 0:
-                value += values[i]
-        print(value)
-        value_list.append(value)
+        
         cumulative_reward_list.append(cumulative_reward)
         if cumulative_reward_list[e].shape == (1,):
             cumulative_reward_list[e] = cumulative_reward_list[e][0]
-        print(cumulative_reward)
+            # print(f'cumulative_reward : {cumulative_reward}')
         # plt.figure(figsize=(10, 5))
         
         # plt.subplot(1, 2, 1)
@@ -95,14 +84,28 @@ for i in range(1, 2):
 
         # plt.show()
     # TODO: plot td_loss_list and cumulative_reward_list
-    with open('reward/reward_%d.dat' % i, 'w') as f:
+
+    end_time = time.time()
+    train_time = end_time - start_time
+
+    result_dict = dict()
+    result_dict["method"] = "DQN"
+    result_dict["n_knapsacks"] = len(knapsack_df)
+    result_dict["n_items"] = len(item_df)
+    result_dict["time"] = train_time
+    result_dict["solution"] = {
+        "total_value": int(cumulative_reward_list[-1])
+    }
+
+    directory = f"results/{problem_name}/integer_programming"
+    make_directory(directory)
+    with open(f"{directory}/result.json", 'w') as f:
+        json.dump(result_dict, f, indent=4)
+
+    with open('reward/reward_%d.txt' % i, 'w') as f:
         f.write(cumulative_reward_list)
         
-    with open('loss/loss_%d.dat' % i, 'w') as f:
-        f.write(cumulative_reward_list)
-    
-    
-    
-    print("Test passed.")
+    with open('loss/loss_%d.txt' % i, 'w') as f:
+        f.write(td_loss_list)
 
 
