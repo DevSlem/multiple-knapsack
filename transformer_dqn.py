@@ -113,6 +113,7 @@ class KnapsackTransformerDQNAgent:
     def __init__(
         self, 
         item_dim: int,
+        selectability_flag_idx: int,
         epoch: int = 1,
         gamma: float = 1.0,
         eps: float = 1.0,
@@ -124,6 +125,7 @@ class KnapsackTransformerDQNAgent:
         device: str = "cuda",
     ):
         self.item_dim = item_dim
+        self.selectability_flag_idx = selectability_flag_idx
         self.epoch = epoch
         self.gamma = gamma
         self.eps = eps
@@ -153,12 +155,16 @@ class KnapsackTransformerDQNAgent:
             action (Tensor): `(num_envs,)`, the index of the selected knapsack and item
         """
         num_envs, n_knapsack_x_items, _ = obs.shape
+        nonselectable_mask = obs[:, :, self.selectability_flag_idx] == 0
         
         # epsilon-greedy policy
         if random.random() < self.eps:
-            return torch.randint(n_knapsack_x_items, (num_envs,))
+            rand_logits = torch.rand((num_envs, n_knapsack_x_items))
+            rand_logits[nonselectable_mask] = -float('inf')
+            return rand_logits.argmax(dim=-1).cpu()
         
         q_value = self.q_network(obs.to(self.device))
+        q_value[nonselectable_mask] = -float('inf')
         return q_value.argmax(dim=-1).cpu()
         
     def update(self, obs: torch.Tensor, action: torch.Tensor, next_obs: torch.Tensor, reward: torch.Tensor, terminated: torch.Tensor):

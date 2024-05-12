@@ -12,6 +12,7 @@ class TestClass(unittest.TestCase):
         
         agent = KnapsackTransformerDQNAgent(
             item_dim=item_dim,
+            selectability_flag_idx=3,
             replay_buffer_max_size=100,
             batch_size=16,
         )
