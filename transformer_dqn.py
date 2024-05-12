@@ -105,6 +105,8 @@ class SingleKnapsackTransformerDQNAgent:
     In this problem, the observation of a state is represented by the mtrix obtained stacking all the item vectors together. 
     The observation shape is `(n_items, item_dim)`.
     `n_items` is not constant and can vary because it is represented as a sequence.
+    
+    Reference: https://research.tudelft.nl/en/publications/reinforcement-learning-for-the-knapsack-problem
     """
     def __init__(
         self, 
