@@ -57,7 +57,7 @@ class ReplayBuffer:
         
         return obs.to(device), action.to(device), next_obs.to(device), reward.to(device), terminated.to(device)
 
-class SingleKnapsackQNetwork(nn.Module):
+class KnapsackQNetwork(nn.Module):
     def __init__(
         self,
         item_dim: int,
@@ -90,21 +90,23 @@ class SingleKnapsackQNetwork(nn.Module):
         Forward pass of the network. 
 
         Args:
-            obs (Tensor): `(batch_size, n_items, item_dim)`
+            obs (Tensor): `(batch_size, n_knapsacks x n_items, item_dim)`
             
         Returns:
-            q_value (Tensor): `(batch_size, n_items)`
+            q_value (Tensor): `(batch_size, n_knapsacks x n_items)`
         """
         obs_embedding = self.obs_embedding_layer(obs)
         transformer_output = self.transformer_layer(obs_embedding)
         q_value = self.q_value_layer(transformer_output)
         return q_value.squeeze(-1)
     
-class SingleKnapsackTransformerDQNAgent:
+class KnapsackTransformerDQNAgent:
     """
-    In this problem, the observation of a state is represented by the mtrix obtained stacking all the item vectors together. 
-    The observation shape is `(n_items, item_dim)`.
-    `n_items` is not constant and can vary because it is represented as a sequence.
+    In this problem, the observation of a state is represented by the matrix obtained stacking all the item vectors together. 
+    The observation shape is `(n_knapsacks x n_items, item_dim)`.
+    Both `n_knapsacks` and `n_items` are not constant and can vary because they're represented as a sequence. 
+    Transformer is permutation-invariant, so their order doesn't matter. 
+    The item vector can be represented as [value, weight, value/weight, selectability_flag, remaining_knapsack_capacity].
     
     Reference: https://research.tudelft.nl/en/publications/reinforcement-learning-for-the-knapsack-problem
     """
@@ -132,8 +134,8 @@ class SingleKnapsackTransformerDQNAgent:
         self.batch_size = batch_size
         self.device = torch.device(device)
         
-        self.q_network = SingleKnapsackQNetwork(item_dim).to(self.device)
-        self.target_network = SingleKnapsackQNetwork(item_dim).to(self.device)
+        self.q_network = KnapsackQNetwork(item_dim).to(self.device)
+        self.target_network = KnapsackQNetwork(item_dim).to(self.device)
         self.target_network.load_state_dict(self.q_network.state_dict())
         self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=1e-6)
         
@@ -145,16 +147,16 @@ class SingleKnapsackTransformerDQNAgent:
         Select an action based on the current observation.
 
         Args:
-            obs (Tensor): `(num_envs, n_items, item_dim)`
+            obs (Tensor): `(num_envs, n_knapsacks x n_items, item_dim)`
 
         Returns:
-            action (Tensor): `(num_envs,)`
+            action (Tensor): `(num_envs,)`, the index of the selected knapsack and item
         """
-        num_envs, n_items, _ = obs.shape
+        num_envs, n_knapsack_x_items, _ = obs.shape
         
         # epsilon-greedy policy
         if random.random() < self.eps:
-            return torch.randint(n_items, (num_envs,))
+            return torch.randint(n_knapsack_x_items, (num_envs,))
         
         q_value = self.q_network(obs.to(self.device))
         return q_value.argmax(dim=-1).cpu()
@@ -164,21 +166,21 @@ class SingleKnapsackTransformerDQNAgent:
         Update the agent with a single step of experience.
 
         Args:
-            obs (Tensor): `(num_envs, n_items, item_dim)`
+            obs (Tensor): `(num_envs, n_knapsacks x n_items, item_dim)`
             action (Tensor): `(num_envs,)`
-            next_obs (Tensor): `(num_envs, n_items, item_dim)`
+            next_obs (Tensor): `(num_envs, n_knapsacks x n_items, item_dim)`
             reward (Tensor): `(num_envs,)`
             terminated (Tensor): `(num_envs,)`
         """
-        n_items = obs.shape[1]
-        self._replay_buffer(n_items).store(obs, action, next_obs, reward, terminated)
+        n_knapsack_x_items = obs.shape[1]
+        self._replay_buffer(n_knapsack_x_items).store(obs, action, next_obs, reward, terminated)
         
-        if self._replay_buffer(n_items).size >= self.batch_size:
-            self._train(n_items)
+        if self._replay_buffer(n_knapsack_x_items).size >= self.batch_size:
+            self._train(n_knapsack_x_items)
             
-    def _train(self, n_items: int):
+    def _train(self, n_knapsack_x_items: int):
         for _ in range(self.epoch):
-            obs, action, next_obs, reward, terminated = self._replay_buffer(n_items).sample(self.device)
+            obs, action, next_obs, reward, terminated = self._replay_buffer(n_knapsack_x_items).sample(self.device)
             
             # feedforward
             q_values = self.q_network(obs)
@@ -204,8 +206,8 @@ class SingleKnapsackTransformerDQNAgent:
         for target_param, param in zip(self.target_network.parameters(), self.q_network.parameters()):
             target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
         
-    def _replay_buffer(self, n_items: int) -> ReplayBuffer:
-        if n_items not in self.replay_buffer_dict:
-            self.replay_buffer_dict[n_items] = ReplayBuffer((n_items, self.item_dim), self.replay_buffer_max_size, self.batch_size)
-        return self.replay_buffer_dict[n_items]
+    def _replay_buffer(self, n_knapsack_x_items: int) -> ReplayBuffer:
+        if n_knapsack_x_items not in self.replay_buffer_dict:
+            self.replay_buffer_dict[n_knapsack_x_items] = ReplayBuffer((n_knapsack_x_items, self.item_dim), self.replay_buffer_max_size, self.batch_size)
+        return self.replay_buffer_dict[n_knapsack_x_items]
     
