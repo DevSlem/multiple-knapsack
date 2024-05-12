@@ -11,7 +11,7 @@ import argparse
 from util import make_directory, load_knapsack_problem
 
 import time
-
+import json
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("problem_name", type=str)
@@ -29,7 +29,7 @@ if __name__ == '__main__':
         
     env = MultiKnapsackEnv(items, capacities)
 
-    EPISODES = 300
+    EPISODES = 3
     dqn = DQN(2 * len(values) + len(capacities) + len(values), len(values) * len(capacities))
     td_loss_list = []
     cumulative_reward_list = []
@@ -97,15 +97,15 @@ if __name__ == '__main__':
         "total_value": int(cumulative_reward_list[-1])
     }
 
-    directory = f"results/{problem_name}/integer_programming"
+    directory = f"results/{problem_name}/dqn"
     make_directory(directory)
     with open(f"{directory}/result.json", 'w') as f:
         json.dump(result_dict, f, indent=4)
 
-    with open('reward/reward_%d.txt' % i, 'w') as f:
-        f.write(cumulative_reward_list)
+    with open(f"{directory}/reward.txt", 'w') as f:
+        f.write(str(cumulative_reward_list))
         
-    with open('loss/loss_%d.txt' % i, 'w') as f:
-        f.write(td_loss_list)
+    with open(f"{directory}/loss.txt", 'w') as f:
+        f.write(str(td_loss_list))
 
 
