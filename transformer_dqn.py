@@ -3,6 +3,10 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import random
+from KnapsackEnv import KnapsackEnv
+from util import load_knapsack_problem
+import argparse
+import matplotlib.pyplot as plt
 
 class ReplayBuffer:
     def __init__(self, obs_shape: tuple[int, ...], max_size: int, batch_size: int):
@@ -217,3 +221,61 @@ class KnapsackTransformerDQNAgent:
             self.replay_buffer_dict[n_knapsack_x_items] = ReplayBuffer((n_knapsack_x_items, self.item_dim), self.replay_buffer_max_size, self.batch_size)
         return self.replay_buffer_dict[n_knapsack_x_items]
     
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("problem_name", type=str)
+    args = parser.parse_args()
+    problem_name = args.problem_name
+    episodes = 10000
+    summary_freq = 1 #episodes // 100
+    
+    
+    knapsack_df, item_df = load_knapsack_problem(problem_name)
+    
+    env = KnapsackEnv(
+        items=item_df[['value', 'weight']].values,
+        capacities=knapsack_df['capacity'].values,
+    )
+    
+    agent = KnapsackTransformerDQNAgent(
+        item_dim=5,
+        selectability_flag_idx=3,
+    )
+    
+    cumulative_reward_list = []
+    
+    for e in range(episodes):
+        obs = env.reset()
+        obs = torch.from_numpy(obs)
+        terminated = False
+        cumulative_reward = 0.0
+        
+        while not terminated:
+            action = agent.select_action(obs)
+            next_obs, reward, terminated, _ = env.step(action.item())
+            
+            next_obs = torch.from_numpy(next_obs)
+            reward = torch.tensor([reward], dtype=torch.float32)
+            terminated = torch.tensor([terminated], dtype=torch.float32)
+            
+            agent.update(
+                obs=obs,
+                action=action,
+                next_obs=next_obs,
+                reward=reward,
+                terminated=terminated
+            )
+            
+            obs = next_obs
+            cumulative_reward += reward.item()
+        
+        cumulative_reward_list.append(cumulative_reward)
+        if e % summary_freq == 0:
+            print(f"Episode: {e}, Cumulative Reward: {cumulative_reward}")
+        
+    directory = f"results/{problem_name}/transformer_dqn"
+    plt.plot(cumulative_reward_list)
+    plt.xlabel('Episodes')
+    plt.ylabel('Cumulative Reward')
+    plt.savefig(f"{directory}/cumulative_rewards.png")
+    plt.close()
