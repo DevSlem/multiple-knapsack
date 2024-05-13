@@ -81,7 +81,7 @@ class DQN:
         self.replay_buffer = ReplayBuffer(obs_dim, max_size, batch_size)
         
     @torch.no_grad()
-    def select_action(self, obs: np.ndarray) -> np.ndarray:
+    def select_action(self, obs: np.ndarray, mask) -> np.ndarray:
         """
         Select an action based on the current observation.
 
@@ -94,11 +94,11 @@ class DQN:
         # actions = [k0i0, k0i1, k0i2, k1i0, k1i1, k1i2]
         # nonselectability_flags = [0, 1, 0]
         # in this case, k0i1 and k1i1 are non-selectable
-        nonselectability_flags = obs[:, -self.n_nonselectability_flags:]
-        nonselectable_mask = np.concatenate([nonselectability_flags for _ in range(self.n_actions // self.n_nonselectability_flags)], axis=-1).astype(bool)
+        # nonselectability_flags = obs[:, -self.n_nonselectability_flags:]
+        # nonselectable_mask = np.concatenate([nonselectability_flags for _ in range(self.n_actions // self.n_nonselectability_flags)], axis=-1).astype(bool)
         if np.random.rand() < self.eps:
             rand_logits = np.random.rand(obs.shape[0], self.n_actions)
-            rand_logits[nonselectable_mask] = -float('inf')
+            rand_logits[~torch.BoolTensor(mask)] = -float('inf')
             return np.argmax(rand_logits, axis=-1)
         
         if not isinstance(obs, torch.Tensor):
@@ -108,7 +108,9 @@ class DQN:
             obs = obs.clone().detach().to(self.device)
         # obs = torch.tensor(obs, dtype=torch.float32).to(self.device)
         q_values = self.q_network(obs)
-        q_values[torch.from_numpy(nonselectable_mask)] = -float('inf')
+        # q_values[torch.from_numpy(nonselectable_mask)] = -float('inf')
+        q_values[~torch.BoolTensor(mask)] = -float('inf')
+        
         return torch.argmax(q_values, dim=-1).cpu().numpy()
     
     def update(self, obs: np.ndarray, action: np.ndarray, next_obs: np.ndarray, reward: np.ndarray, terminated: np.ndarray):

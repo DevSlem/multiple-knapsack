@@ -76,8 +76,17 @@ class MultiKnapsackEnv(gym.Env):
         no_more_fits = np.all(self.state['remaining_capacities'] < np.min(self.items[self.state['selection_status'] == 0, 1]))
         done = np.all(self.state['selection_status']) or no_more_fits
         
+        mask = self.valid_actions()
         # self.time_step += 1
         # if self.time_step > 100:
         #     done = True
 
-        return self.prepare_state(), reward, done
+        return self.prepare_state(), reward, done, mask
+
+    def valid_actions(self):
+        mask = np.zeros(self.num_items * self.num_bags, dtype=bool)
+        for i in range(self.num_items):
+            for j in range(self.num_bags):
+                if self.state["selection_status"][i] == 0 and self.state['remaining_capacities'][j] >= self.items[i][1]:
+                    mask[i + j * self.num_items] = True
+        return mask.reshape(1, len(mask))
