@@ -30,7 +30,7 @@ if __name__ == '__main__':
     env = MultiKnapsackEnv(items, capacities)
 
     EPISODES = 3
-    dqn = DQN(2 * len(values) + len(capacities) + len(values), len(values) * len(capacities))
+    dqn = DQN(2 * len(values) + len(capacities) + len(values), len(values) * len(capacities), len(values))
     td_loss_list = []
     cumulative_reward_list = []
     start_time = time.time()
@@ -46,10 +46,10 @@ if __name__ == '__main__':
             # take the action then observe next state and reward
             next_obs, reward, terminated = env.step(action)
             
-            action = np.array([action]) # (n_envs,)
-            next_obs = next_obs[np.newaxis, :] # (n_envs, obs_dim)
-            reward = np.array([reward]) # (n_envs,)
-            terminated = np.array([terminated]) # (n_envs,)
+            # action = np.array([action]) # (n_envs,)
+            # next_obs = next_obs[np.newaxis, :] # (n_envs, obs_dim)
+            # reward = np.array([reward]) # (n_envs,)
+            # terminated = np.array([terminated]) # (n_envs,)
             
             # update DQN
             td_losses = dqn.update(obs, action, next_obs, reward, terminated)
@@ -58,7 +58,7 @@ if __name__ == '__main__':
             
             # transition to the next state
             obs = next_obs
-            cumulative_reward += reward[0]
+            cumulative_reward += reward
             print(f'cumulative_reward : {cumulative_reward}')
 
         

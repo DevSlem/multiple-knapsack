@@ -56,9 +56,10 @@ class QNetwork(nn.Module):
         return self.model(obs)
 
 class DQN:
-    def __init__(self, obs_dim, n_actions, device="cpu", epoch=3, lr=1e-3, gamma=0.99, max_size=1000, batch_size=32, eps=1.0, eps_decay=0.995, min_eps=0.01, target_net_update_freq=100) -> None:
+    def __init__(self, obs_dim, n_actions, n_nonselectability_flags, device="cpu", epoch=3, lr=1e-3, gamma=0.99, max_size=1000, batch_size=32, eps=1.0, eps_decay=0.995, min_eps=0.01, target_net_update_freq=100) -> None:
         self.obs_dim = obs_dim
         self.n_actions = n_actions
+        self.n_nonselectability_flags = n_nonselectability_flags
         self.device = torch.device(device)
         self.epoch = epoch
         self.lr = lr
@@ -90,8 +91,15 @@ class DQN:
         Returns:
             action (ndarray): `(n_envs,)`
         """
+        # actions = [k0i0, k0i1, k0i2, k1i0, k1i1, k1i2]
+        # nonselectability_flags = [0, 1, 0]
+        # in this case, k0i1 and k1i1 are non-selectable
+        nonselectability_flags = obs[:, -self.n_nonselectability_flags:]
+        nonselectable_mask = np.concatenate([nonselectability_flags for _ in range(self.n_actions // self.n_nonselectability_flags)], axis=-1).astype(bool)
         if np.random.rand() < self.eps:
-            return np.random.randint(self.n_actions)
+            rand_logits = np.random.rand(obs.shape[0], self.n_actions)
+            rand_logits[nonselectable_mask] = -float('inf')
+            return np.argmax(rand_logits, axis=-1)
         
         if not isinstance(obs, torch.Tensor):
             obs = torch.tensor(obs, dtype=torch.float32).to(self.device)
@@ -100,6 +108,7 @@ class DQN:
             obs = obs.clone().detach().to(self.device)
         # obs = torch.tensor(obs, dtype=torch.float32).to(self.device)
         q_values = self.q_network(obs)
+        q_values[torch.from_numpy(nonselectable_mask)] = -float('inf')
         return torch.argmax(q_values, dim=-1).cpu().numpy()
     
     def update(self, obs: np.ndarray, action: np.ndarray, next_obs: np.ndarray, reward: np.ndarray, terminated: np.ndarray):
