@@ -9,18 +9,27 @@ class KnapsackEnv(gym.Env):
         
         self.item_dim = 5
         self.items = np.array(items) # 아이템의 값, 무게
+        self.capacities = np.array(capacities).astype(np.float32) #knapsack의 capacity
+        
         self.num_items = len(items)
+        self.num_bags = len(capacities)
+                     
+        #normalization
+        self.values = self.items[:, 0].astype(np.float32)
+        self.max_item_value = np.max(self.items[:, 0])
+        self.values /= self.max_item_value
         
-        self.capacities = np.array(capacities) #knapsack의 capacity
-        self.n_bags = len(capacities)
+        self.weights = self.items[:, 1].astype(np.float32)
+        self.max_item_weight = np.max(self.item[:, 1])
+        self.weights /= self.max_item_weight
         
-        self.values = self.items[:, 0]
-        self.weights = self.items[:, 1]
+        self.capacities /= self.max_item_weight
+        
         self.remaining_capacities = np.array(capacities)
         self.ratios = self.values / self.weights
         
         # 행동 공간
-        self.action_space = np.array(self.num_items * self.n_bags)
+        self.action_space = np.array(self.num_items * self.num_bags)
 
         # 상태 공간
         # n_items x item_dim (profit, weight, q_value, selected, residual capacities
@@ -31,7 +40,7 @@ class KnapsackEnv(gym.Env):
 
     def reset(self):
         # Initialize the state with the items and initial capacity
-        self.selectable = np.ones((self.num_items, self.n_bags)).astype(bool)
+        self.selectable = np.ones((self.num_items, self.num_bags)).astype(bool)
         # self.state = np.empty((self.num_items * self.n_bags, self.item_dim), dtype=np.float32)
         self.remaining_capacities = self.capacities.copy()
 
@@ -44,8 +53,8 @@ class KnapsackEnv(gym.Env):
     def step(self, action):
         # item_idx = action % self.num_items
         # bag_idx = action // self.num_items
-        item_idx = action // self.n_bags
-        bag_idx = action % self.n_bags
+        item_idx = action // self.num_bags
+        bag_idx = action % self.num_bags
         
         done = False
         reward = 0
@@ -68,10 +77,10 @@ class KnapsackEnv(gym.Env):
         return next_state[np.newaxis, ...], reward, done, {}
     
     def _make_state(self):
-        state = np.empty((self.num_items * self.n_bags, self.item_dim), dtype=np.float32)
-        state[:, 0] = np.repeat(self.values, self.n_bags)
-        state[:, 1] = np.repeat(self.weights, self.n_bags)
-        state[:, 2] = np.repeat(self.ratios, self.n_bags)
+        state = np.empty((self.num_items * self.num_bags, self.item_dim), dtype=np.float32)
+        state[:, 0] = np.repeat(self.values, self.num_bags)
+        state[:, 1] = np.repeat(self.weights, self.num_bags)
+        state[:, 2] = np.repeat(self.ratios, self.num_bags)
         state[:, 3] = self.selectable.astype(np.float32).flatten()
         state[:, 4] = np.tile(self.remaining_capacities, self.num_items)
         return state
