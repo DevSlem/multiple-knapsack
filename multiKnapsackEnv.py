@@ -14,14 +14,23 @@ class MultiKnapsackEnv(gym.Env):
         self.num_items = len(items)
         self.num_bags = len(capacities)
         
+        #For Normalization
+        self.max_item_val = np.max(self.items[:, 0])
+        self.items[:, 0] /= self.max_item_val
+        
+        self.max_item_weight = np.max(self.items[:, 1])
+        self.items[:, 1] /= self.max_item_weight
+        
+        self.capacities /= self.max_item_weight
+        
         # 행동 공간 (각 아이템을 각 배낭에 넣을 수 있는 선택지)
         self.action_space = spaces.Discrete(self.num_items * self.num_bags)
         
         # 상태 공간
         # 아이템의 값, 무게, 배낭의 남은 용량, 아이템의 선택 상태
         self.observation_space = spaces.Dict({
-            'item_values': spaces.Box(low=0, high=np.inf, shape=(self.num_items,), dtype=np.float32),
-            'item_weights': spaces.Box(low=0, high=np.inf, shape=(self.num_items,), dtype=np.float32),
+            'item_values': spaces.Box(low=0, high=1, shape=(self.num_items,), dtype=np.float32),
+            'item_weights': spaces.Box(low=0, high=1, shape=(self.num_items,), dtype=np.float32),
             'remaining_capacities': spaces.Box(low=0, high=np.max(capacities), shape=(self.num_bags,), dtype=np.float32),
             'selection_status': spaces.MultiBinary(self.num_items)
         })
@@ -69,7 +78,7 @@ class MultiKnapsackEnv(gym.Env):
         if self.state['selection_status'][item_idx] == 0 and self.state['remaining_capacities'][bag_idx] >= item_weight:
             self.state['remaining_capacities'][bag_idx] -= item_weight
             self.state['selection_status'][item_idx] = 1
-            reward = item_value
+            reward = item_value #how do we normalize? 
         else:
             reward = 0  # 아이템을 추가할 수 없는 경우 보상 없음
         
