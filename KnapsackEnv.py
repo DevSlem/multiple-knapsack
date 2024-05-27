@@ -20,7 +20,7 @@ class KnapsackEnv(gym.Env):
         self.values /= self.max_item_value
         
         self.weights = self.items[:, 1].astype(np.float32)
-        self.max_item_weight = np.max(self.item[:, 1])
+        self.max_item_weight = np.max(self.items[:, 1])
         self.weights /= self.max_item_weight
         
         self.capacities /= self.max_item_weight
@@ -74,7 +74,7 @@ class KnapsackEnv(gym.Env):
 
         # set the 'state'
         next_state = self._make_state()  # Add batch dimension
-        return next_state[np.newaxis, ...], reward, done, {}
+        return next_state[np.newaxis, ...], reward, done, {"value": reward * self.max_item_value}
     
     def _make_state(self):
         state = np.empty((self.num_items * self.num_bags, self.item_dim), dtype=np.float32)

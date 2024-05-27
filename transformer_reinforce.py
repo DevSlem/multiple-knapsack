@@ -153,9 +153,9 @@ class KnapsackTransformerREINFORCEAgent:
         return loss.item(), entropy.item()
     
     def _buffer_to_tensor(self):
-        reward = torch.stack(self._reward_buffer, dim=1)
-        action_log_prob = torch.stack(self._action_log_prob_buffer, dim=1)
-        entropy = torch.stack(self._entropy_buffer, dim=1)
+        reward = torch.stack(self._reward_buffer, dim=1).to(self.device)
+        action_log_prob = torch.stack(self._action_log_prob_buffer, dim=1).to(self.device)
+        entropy = torch.stack(self._entropy_buffer, dim=1).to(self.device)
         return reward, action_log_prob, entropy
     
     def _compute_return(self, reward: torch.Tensor) -> torch.Tensor:
@@ -172,16 +172,18 @@ def train(env: KnapsackEnv, agent: KnapsackTransformerREINFORCEAgent, episodes: 
     policy_losses = []
     entropies = []
     summary_freq = 1
+    total_values = []
     
     for e in range(episodes):
         obs = env.reset()
         obs = torch.from_numpy(obs)
         terminated = False
         cumulative_reward = 0.0
+        total_value = 0.0
         
         while not terminated:
             action = agent.select_action(obs)
-            next_obs, reward, terminated, _ = env.step(action.item())
+            next_obs, reward, terminated, info = env.step(action.item())
             
             next_obs = torch.from_numpy(next_obs)
             reward = torch.tensor([reward], dtype=torch.float32)
@@ -197,28 +199,30 @@ def train(env: KnapsackEnv, agent: KnapsackTransformerREINFORCEAgent, episodes: 
             
             obs = next_obs
             cumulative_reward += reward.item()
+            total_value += info["value"]
             
             if agent_info is not None:
                 policy_losses.append(agent_info["policy_loss"])
                 entropies.append(agent_info["entropy"])
         
         cumulative_reward_list.append(cumulative_reward)
+        total_values.append(total_value)
         if e % summary_freq == 0:
             print(f"Episode: {e}, Cumulative Reward: {cumulative_reward}")
             
-    return cumulative_reward_list, policy_losses, entropies
+    return cumulative_reward_list, policy_losses, entropies, total_values
 
 def inference(env: KnapsackEnv, agent: KnapsackTransformerREINFORCEAgent):
     obs = env.reset()
     terminated = False
-    cumulative_reward = 0.0
+    total_value = 0.0
     
     while not terminated:
         action = agent.select_action(torch.from_numpy(obs))
-        obs, reward, terminated, _ = env.step(action.item())
-        cumulative_reward += reward
+        obs, reward, terminated, info = env.step(action.item())
+        total_value += info["value"]
         
-    return cumulative_reward
+    return total_value
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -251,7 +255,7 @@ if __name__ == '__main__':
     )
     
     start_time = time.time()
-    cumulative_reward_list, policy_losses, entropies = train(env, agent, episodes, summary_freq)
+    cumulative_reward_list, policy_losses, entropies, total_values = train(env, agent, episodes, summary_freq)
     end_time = time.time()
     train_time = end_time - start_time
     
@@ -275,6 +279,8 @@ if __name__ == '__main__':
     
     cumulative_reward_df = pd.DataFrame(cumulative_reward_list, columns=["cumulative_reward"])
     cumulative_reward_df.to_csv(f"{directory}/cumulative_rewards.csv", index=False)
+    total_value_df = pd.DataFrame(total_values, columns=["cumulative_value"])
+    total_value_df.to_csv(f"{directory}/total_values.csv", index=False)
     
     plt.plot(cumulative_reward_list)
     plt.title("Cumulative Rewards")
