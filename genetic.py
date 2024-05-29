@@ -1,30 +1,8 @@
 import random
 import time
-
 import argparse
 from util import make_directory, load_knapsack_problem
-
 import json
-# 데이터 파일 로드 함수
-def load_data(filename):
-    data = {}
-    with open(filename, 'r') as file:
-        for line in file:
-            line = line.strip()
-            if not line:  # 빈 라인 스킵
-                continue
-            key, value = line.strip().split(' = ')
-            # 세미콜론 제거 및 공백 제거
-            value = value.strip(';').strip()
-            # eval 대신 안전한 ast.literal_eval 사용
-            try:
-                import ast
-                data[key] = ast.literal_eval(value)
-            except ValueError as e:
-                print(f"Error parsing {value}: {e}")
-    return data['NbItems'], data['NbKnapsacks'], data['capacity'], data['value'], data['weight']
-
-import random
 
 class GeneticAlgorithm:
     def __init__(self, num_items, num_knapsacks, capacities, values, weights, population_size=200, crossover_rate=0.7, mutation_rate=0.05, selection_pressure=0.5):
@@ -38,28 +16,33 @@ class GeneticAlgorithm:
         self.mutation_rate = mutation_rate
         self.selection_pressure = selection_pressure
         self.population = [self.random_solution() for _ in range(population_size)]
-        
+        self.fitness_cache = {}
 
     def random_solution(self):
-        # Create a random solution where each item is assigned to a knapsack (or none, represented as -1)
         return [random.randint(-1, self.num_knapsacks - 1) for _ in range(self.num_items)]
 
     def calculate_fitness(self, solution):
+        if tuple(solution) in self.fitness_cache:
+            return self.fitness_cache[tuple(solution)]
+        
         total_value = 0
         knapsack_weights = [0] * self.num_knapsacks
         for item_index, knapsack_index in enumerate(solution):
             if knapsack_index == -1:
-                continue  # Item is not in any knapsack
+                continue
             if knapsack_weights[knapsack_index] + self.weights[item_index] <= self.capacities[knapsack_index]:
                 knapsack_weights[knapsack_index] += self.weights[item_index]
                 total_value += self.values[item_index]
+
+        self.fitness_cache[tuple(solution)] = total_value
         return total_value
 
-    def selection(self):
-        # Sort the population by fitness and select the top individuals based on selection pressure
-        sorted_population = sorted(self.population, key=self.calculate_fitness, reverse=True)
-        cutoff = int(self.selection_pressure * self.population_size)
-        self.population = sorted_population[:cutoff]
+    def tournament_selection(self):
+        selected = []
+        for _ in range(2):
+            tournament = random.sample(self.population, k=int(self.population_size * self.selection_pressure))
+            selected.append(max(tournament, key=self.calculate_fitness))
+        return selected
 
     def crossover(self, parent1, parent2):
         if random.random() < self.crossover_rate:
@@ -79,21 +62,17 @@ class GeneticAlgorithm:
     def generate_new_population(self):
         new_population = []
         while len(new_population) < self.population_size:
-            parent1, parent2 = random.sample(self.population, 2)
+            parent1, parent2 = self.tournament_selection()
             child1, child2 = self.crossover(parent1, parent2)
             new_population.extend([self.mutate(child1), self.mutate(child2)])
-        self.population = new_population
+        self.population = new_population[:self.population_size]
 
     def run(self, generations=1000):
         for generation in range(generations):
-            self.selection()
             self.generate_new_population()
             best_solution = max(self.population, key=self.calculate_fitness)
-            #print(best_solution)
             print(f"Generation {generation}: Best Fitness = {self.calculate_fitness(best_solution)}")
         return self.calculate_fitness(best_solution), best_solution
-
-# 파일 로드 및 유전 알고리즘 실행
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
