@@ -38,7 +38,7 @@ You can optimize the problems using below methods:
 | Q-learning | `python qlearning.py [PROBLEM_NAME]` | Conventional tabular Q-learning. |
 | DQN | `python dqn.py [PROBLEM_NAME]` | Naive Deep Q-network. |
 | DQN with Transformer | `python dqn_transformer.py [PROBLEM_NAME]` | DQN with Transformer for Different Instances. |
-| REINFORCE with Rollout Baseline | `python reinforce.py [PROBLEM_NAME]` | TODO |
+| REINFORCE | `python reinforce.py [PROBLEM_NAME]` | TODO |
 
 See details in each python file.
 

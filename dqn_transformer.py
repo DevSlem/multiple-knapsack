@@ -4,11 +4,10 @@ import torch.optim as optim
 import torch.nn.functional as F
 import random
 from KnapsackEnv import KnapsackEnv
-from util import load_knapsack_problem, make_directory
+from util import load_knapsack_problem, make_directory, save_results
 import argparse
 import matplotlib.pyplot as plt
 import time
-import json
 
 class ReplayBuffer:
     def __init__(self, obs_shape: tuple[int, ...], max_size: int, batch_size: int):
@@ -131,6 +130,7 @@ class KnapsackTransformerDQNAgent:
         batch_size: int = 512,
         num_layers: int = 2,
         device: str = "cuda",
+        inference: bool = False,
     ):
         self.item_dim = item_dim
         self.selectability_flag_idx = selectability_flag_idx
@@ -143,6 +143,7 @@ class KnapsackTransformerDQNAgent:
         self.replay_buffer_max_size = replay_buffer_max_size
         self.batch_size = batch_size
         self.device = torch.device(device)
+        self.inference = inference
         
         self.q_network = KnapsackQNetwork(item_dim, num_layers).to(self.device)
         self.target_network = KnapsackQNetwork(item_dim, num_layers).to(self.device)
@@ -166,7 +167,7 @@ class KnapsackTransformerDQNAgent:
         nonselectable_mask = obs[:, :, self.selectability_flag_idx] == 0
         
         # epsilon-greedy policy
-        if random.random() < self.eps:
+        if not self.inference and random.random() < self.eps:
             rand_logits = torch.rand((num_envs, n_knapsack_x_items))
             rand_logits[nonselectable_mask] = -float('inf')
             return rand_logits.argmax(dim=-1).cpu()
@@ -186,6 +187,9 @@ class KnapsackTransformerDQNAgent:
             reward (Tensor): `(num_envs,)`
             terminated (Tensor): `(num_envs,)`
         """
+        if self.inference:
+            return
+        
         n_knapsack_x_items = obs.shape[1]
         self._replay_buffer(n_knapsack_x_items).store(obs, action, next_obs, reward, terminated)
         
@@ -288,11 +292,12 @@ def inference(env: KnapsackEnv, agent: KnapsackTransformerDQNAgent):
         obs, reward, terminated, info = env.step(action.item())
         total_value += info["value"]
         
-    return total_value
+    return round(total_value.item())
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("problem_name", type=str)
+    # parser.add_argument("problem_name", type=str)
+    parser.add_argument("--inference", "-i", type=str, default=None)
     parser.add_argument("--episodes", type=int, default=300)
     parser.add_argument("--summary_freq", type=int, default=10)
     parser.add_argument("--epoch", type=int, default=3)
@@ -304,77 +309,104 @@ if __name__ == '__main__':
     parser.add_argument("--replay_buffer_max_size", type=int, default=10000)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--num_layers", type=int, default=2)
     
     args = parser.parse_args()
-    problem_name = args.problem_name
+    # problem_name = args.problem_name
+    inference_problem = args.inference
     episodes = args.episodes
     summary_freq = args.summary_freq
     
-    
-    knapsack_df, item_df = load_knapsack_problem(problem_name)
-    
-    env = KnapsackEnv(
-        items=item_df[['value', 'weight']].values,
-        capacities=knapsack_df['capacity'].values,
-    )
-    
-    agent = KnapsackTransformerDQNAgent(
-        item_dim=5,
-        selectability_flag_idx=3,
-        epoch=args.epoch,
-        gamma=args.gamma,
-        eps=args.eps,
-        eps_decay=args.eps_decay,
-        min_eps=args.min_eps,
-        tau=args.tau,
-        replay_buffer_max_size=args.replay_buffer_max_size,
-        batch_size=args.batch_size,
-        num_layers=args.num_layers,
-        device=args.device,
-    )
-    
-    start_time = time.time()
-    cumulative_reward_list, td_losses, epsilons = train(env, agent, episodes, summary_freq)
-    end_time = time.time()
-    train_time = end_time - start_time
-    
-    total_value = inference(env, agent)
+    if inference_problem is None:
+        env = KnapsackEnv()
         
-    directory = f"results/{problem_name}/transformer_dqn"
-    make_directory(directory)
+        agent = KnapsackTransformerDQNAgent(
+            item_dim=5,
+            selectability_flag_idx=3,
+            epoch=args.epoch,
+            gamma=args.gamma,
+            eps=args.eps,
+            eps_decay=args.eps_decay,
+            min_eps=args.min_eps,
+            tau=args.tau,
+            replay_buffer_max_size=args.replay_buffer_max_size,
+            batch_size=args.batch_size,
+            num_layers=2,
+            device=args.device,
+        )
+        
+        start_time = time.time()
+        cumulative_reward_list, td_losses, epsilons = train(env, agent, episodes, summary_freq)
+        end_time = time.time()
+        train_time = end_time - start_time
+        
+        directory = "results/train/dqn_transformer"
+        make_directory(directory)
+        ckpt_dict = {
+            "agent": agent.q_network.state_dict(),
+            "train_time": train_time,
+            "episodes": episodes,
+        }
+        torch.save(ckpt_dict, f"{directory}/checkpoint.pt")
+        
+        plt.plot(cumulative_reward_list)
+        plt.title("Cumulative Rewards")
+        plt.xlabel('Episodes')
+        plt.ylabel('Cumulative Reward')
+        plt.savefig(f"{directory}/cumulative_rewards.png")
+        plt.close()
+        
+        plt.plot(td_losses)
+        plt.title("TD Losses")
+        plt.xlabel('Steps')
+        plt.ylabel('TD Loss')
+        plt.savefig(f"{directory}/td_losses.png")
+        plt.close()
+        
+        plt.plot(epsilons)
+        plt.title(f"Epsilon Decay {args.eps_decay}")
+        plt.xlabel('Steps')
+        plt.ylabel('Epsilon')
+        plt.savefig(f"{directory}/epsilons.png")
+        plt.close()
+        
+    else:
+        knapsack_df, item_df = load_knapsack_problem(inference_problem)
+        env = KnapsackEnv(
+            items=item_df[['value', 'weight']].values,
+            capacities=knapsack_df['capacity'].values,
+        )
+        
+        agent = KnapsackTransformerDQNAgent(
+            item_dim=5,
+            selectability_flag_idx=3,
+            epoch=0,
+            gamma=args.gamma,
+            eps=0.0,
+            eps_decay=args.eps_decay,
+            min_eps=0.0,
+            tau=args.tau,
+            replay_buffer_max_size=args.replay_buffer_max_size,
+            batch_size=args.batch_size,
+            num_layers=2,
+            device=args.device,
+            inference=True,
+        )
+        
+        ckpt_dict = torch.load(f"results/train/dqn_transformer/checkpoint.pt")
+        agent.q_network.load_state_dict(ckpt_dict["agent"])
     
-    result_dict = dict()
-    result_dict["method"] = "Transformer DQN"
-    result_dict["n_knapsacks"] = len(knapsack_df)
-    result_dict["n_items"] = len(item_df)
-    result_dict["time"] = train_time
-    result_dict["episodes"] = episodes
-    result_dict["solution"] = {
-        "total_value": total_value,
-    }
-    
-    with open(f"{directory}/result.json", "w") as f:
-        json.dump(result_dict, f, indent=4)
-    
-    plt.plot(cumulative_reward_list)
-    plt.title("Cumulative Rewards")
-    plt.xlabel('Episodes')
-    plt.ylabel('Cumulative Reward')
-    plt.savefig(f"{directory}/cumulative_rewards.png")
-    plt.close()
-    
-    plt.plot(td_losses)
-    plt.title("TD Losses")
-    plt.xlabel('Steps')
-    plt.ylabel('TD Loss')
-    plt.savefig(f"{directory}/td_losses.png")
-    plt.close()
-    
-    plt.plot(epsilons)
-    plt.title(f"Epsilon Decay {args.eps_decay}")
-    plt.xlabel('Steps')
-    plt.ylabel('Epsilon')
-    plt.savefig(f"{directory}/epsilons.png")
-    plt.close()
-    
+        start_time = time.time()
+        total_value = inference(env, agent)
+        inference_time = time.time() - start_time
+
+        result_df = save_results(
+            problem_name=inference_problem,
+            method="DQN with Transformer",
+            total_value=total_value,
+            episodes=ckpt_dict["episodes"],
+            train_time=ckpt_dict["train_time"],
+            inference_time=inference_time,
+        )
+        
+        print("Inference results (the last one is the current result):")
+        print(result_df)

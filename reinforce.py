@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from KnapsackEnv import KnapsackEnv
-from util import load_knapsack_problem, make_directory
+from util import load_knapsack_problem, make_directory, save_results
 import argparse
 import matplotlib.pyplot as plt
 import time
@@ -70,12 +70,14 @@ class KnapsackTransformerREINFORCEAgent:
         gamma: float = 1.0,
         entropy_coef: float = 0.001,
         device: str = "cuda",
+        inference: bool = False,
     ):
         self.item_dim = item_dim
         self.selectability_flag_idx = selectability_flag_idx
         self.gamma = gamma
         self.entropy_coef = entropy_coef
         self.device = torch.device(device)
+        self.inference = inference
         
         self.policy_network = KnapsackPolicyNetwork(item_dim).to(self.device)
         self.optimizer = optim.RMSprop(self.policy_network.parameters(), lr=1e-6)
@@ -105,8 +107,10 @@ class KnapsackTransformerREINFORCEAgent:
         policy_dist = Categorical(logits=logits)
 
         action = policy_dist.sample()
-        self._action_log_prob = policy_dist.log_prob(action)
-        self._entropy = policy_dist.entropy()
+        
+        if not self.inference:
+            self._action_log_prob = policy_dist.log_prob(action)
+            self._entropy = policy_dist.entropy()
         
         return action.detach().cpu()
         
@@ -121,6 +125,9 @@ class KnapsackTransformerREINFORCEAgent:
             reward (Tensor): `(num_envs,)`
             terminated (Tensor): `(num_envs,)`
         """
+        if self.inference:
+            return
+        
         self._reward_buffer.append(reward)
         self._action_log_prob_buffer.append(self._action_log_prob)
         self._entropy_buffer.append(self._entropy)
@@ -173,6 +180,7 @@ def train(env: KnapsackEnv, agent: KnapsackTransformerREINFORCEAgent, episodes: 
     entropies = []
     summary_freq = 1
     total_values = []
+    _start_time = time.time()
     
     for e in range(episodes):
         obs = env.reset()
@@ -208,7 +216,7 @@ def train(env: KnapsackEnv, agent: KnapsackTransformerREINFORCEAgent, episodes: 
         cumulative_reward_list.append(cumulative_reward)
         total_values.append(total_value)
         if e % summary_freq == 0:
-            print(f"Episode: {e}, Cumulative Reward: {cumulative_reward}")
+            print(f"Training time: {time.time() - _start_time:.2f}, Episode: {e}, Cumulative Reward: {cumulative_reward}")
             
     return cumulative_reward_list, policy_losses, entropies, total_values
 
@@ -222,84 +230,103 @@ def inference(env: KnapsackEnv, agent: KnapsackTransformerREINFORCEAgent):
         obs, reward, terminated, info = env.step(action.item())
         total_value += info["value"]
         
-    return total_value
+    return round(total_value.item())
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("problem_name", type=str)
-    parser.add_argument("--episodes", type=int, default=100)
-    parser.add_argument("--summary_freq", type=int, default=10)
+    # parser.add_argument("problem_name", type=str)
+    parser.add_argument("--inference", "-i", type=str, default=None)
+    parser.add_argument("--episodes", type=int, default=10000)
+    parser.add_argument("--summary_freq", type=int, default=100)
     parser.add_argument("--gamma", type=float, default=1)
     parser.add_argument("--entropy_coef", type=float, default=0.001)
     parser.add_argument("--device", type=str, default="cuda")
     
     args = parser.parse_args()
-    problem_name = args.problem_name
+    # problem_name = args.problem_name
+    inference_problem = args.inference
     episodes = args.episodes
     summary_freq = args.summary_freq
+
     
-    
-    knapsack_df, item_df = load_knapsack_problem(problem_name)
-    
-    env = KnapsackEnv(
-        items=item_df[['value', 'weight']].values,
-        capacities=knapsack_df['capacity'].values,
-    )
-    
-    agent = KnapsackTransformerREINFORCEAgent(
-        item_dim=5,
-        selectability_flag_idx=3,
-        gamma=args.gamma,
-        entropy_coef=args.entropy_coef,
-        device=args.device,
-    )
-    
-    start_time = time.time()
-    cumulative_reward_list, policy_losses, entropies, total_values = train(env, agent, episodes, summary_freq)
-    end_time = time.time()
-    train_time = end_time - start_time
-    
-    total_value = inference(env, agent)
+    if inference_problem is None:
+        env = KnapsackEnv()
         
-    directory = f"results/{problem_name}/transformer_reinforce"
-    make_directory(directory)
+        agent = KnapsackTransformerREINFORCEAgent(
+            item_dim=5,
+            selectability_flag_idx=3,
+            gamma=args.gamma,
+            entropy_coef=args.entropy_coef,
+            device=args.device,
+        )
+        
+        start_time = time.time()
+        cumulative_reward_list, policy_losses, entropies, _ = train(env, agent, episodes, summary_freq)
+        end_time = time.time()
+        train_time = end_time - start_time
+        
+        directory = "results/train/reinforce"
+        make_directory(directory)
+        
+        ckpt_dict = {
+            "agent": agent.policy_network.state_dict(),
+            "train_time": train_time,
+        }
+        torch.save(ckpt_dict, f"{directory}/checkpoint.pt")
+        
+        plt.plot(cumulative_reward_list)
+        plt.title("Cumulative Rewards")
+        plt.xlabel('Episodes')
+        plt.ylabel('Cumulative Reward')
+        plt.savefig(f"{directory}/cumulative_rewards.png")
+        plt.close()
+        
+        plt.plot(policy_losses)
+        plt.title("Policy Losses")
+        plt.xlabel('Steps')
+        plt.ylabel('Policy Loss')
+        plt.savefig(f"{directory}/policy_losses.png")
+        plt.close()
+        
+        plt.plot(entropies)
+        plt.title(f"Entropies")
+        plt.xlabel('Steps')
+        plt.ylabel('Entropy')
+        plt.savefig(f"{directory}/entropies.png")
+        plt.close()
     
-    result_dict = dict()
-    result_dict["method"] = "Transformer REINFORCE"
-    result_dict["n_knapsacks"] = len(knapsack_df)
-    result_dict["n_items"] = len(item_df)
-    result_dict["time"] = train_time
-    result_dict["episodes"] = episodes
-    result_dict["solution"] = {
-        "total_value": total_value,
-    }
-    
-    with open(f"{directory}/result.json", "w") as f:
-        json.dump(result_dict, f, indent=4)
-    
-    cumulative_reward_df = pd.DataFrame(cumulative_reward_list, columns=["cumulative_reward"])
-    cumulative_reward_df.to_csv(f"{directory}/cumulative_rewards.csv", index=False)
-    total_value_df = pd.DataFrame(total_values, columns=["cumulative_value"])
-    total_value_df.to_csv(f"{directory}/total_values.csv", index=False)
-    
-    plt.plot(cumulative_reward_list)
-    plt.title("Cumulative Rewards")
-    plt.xlabel('Episodes')
-    plt.ylabel('Cumulative Reward')
-    plt.savefig(f"{directory}/cumulative_rewards.png")
-    plt.close()
-    
-    plt.plot(policy_losses)
-    plt.title("Policy Losses")
-    plt.xlabel('Steps')
-    plt.ylabel('Policy Loss')
-    plt.savefig(f"{directory}/policy_losses.png")
-    plt.close()
-    
-    plt.plot(entropies)
-    plt.title(f"Entropies")
-    plt.xlabel('Steps')
-    plt.ylabel('Entropy')
-    plt.savefig(f"{directory}/entropies.png")
-    plt.close()
-    
+    else:
+        knapsack_df, item_df = load_knapsack_problem(inference_problem)
+        env = KnapsackEnv(
+            items=item_df[['value', 'weight']].values,
+            capacities=knapsack_df['capacity'].values,
+        )
+        
+        agent = KnapsackTransformerREINFORCEAgent(
+            item_dim=5,
+            selectability_flag_idx=3,
+            gamma=args.gamma,
+            entropy_coef=args.entropy_coef,
+            device=args.device,
+            inference=True,
+        )
+        
+        ckpt_dict = torch.load(f"results/train/reinforce/checkpoint.pt")
+        agent.policy_network.load_state_dict(ckpt_dict["agent"])
+        
+        start_time = time.time()
+        total_value = inference(env, agent)
+        end_time = time.time()
+        inference_time = end_time - start_time
+        
+        result_df = save_results(
+            problem_name=inference_problem,
+            method="REINFORCE",
+            total_value=total_value,
+            episodes=ckpt_dict["episodes"],
+            train_time=ckpt_dict["train_time"],
+            inference_time=inference_time,
+        )
+        
+        print("Inference results (the last one is the current result):")
+        print(result_df)
