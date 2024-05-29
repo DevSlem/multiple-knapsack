@@ -1,5 +1,5 @@
 import unittest
-from transformer_dqn import KnapsackTransformerDQNAgent
+from dqn_transformer import KnapsackTransformerDQNAgent
 import torch
 import numpy as np
 from KnapsackEnv import KnapsackEnv

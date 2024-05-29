@@ -67,6 +67,7 @@ class KnapsackQNetwork(nn.Module):
     def __init__(
         self,
         item_dim: int,
+        num_layers: int,
     ):
         super().__init__()
         
@@ -82,7 +83,7 @@ class KnapsackQNetwork(nn.Module):
                 nhead=4,
                 batch_first=True,
             ),
-            num_layers=2,
+            num_layers=num_layers,
         )
         
         self.q_value_layer = nn.Sequential(
@@ -128,6 +129,7 @@ class KnapsackTransformerDQNAgent:
         tau: float = 0.05,
         replay_buffer_max_size: int = 100000,
         batch_size: int = 512,
+        num_layers: int = 2,
         device: str = "cuda",
     ):
         self.item_dim = item_dim
@@ -142,8 +144,8 @@ class KnapsackTransformerDQNAgent:
         self.batch_size = batch_size
         self.device = torch.device(device)
         
-        self.q_network = KnapsackQNetwork(item_dim).to(self.device)
-        self.target_network = KnapsackQNetwork(item_dim).to(self.device)
+        self.q_network = KnapsackQNetwork(item_dim, num_layers).to(self.device)
+        self.target_network = KnapsackQNetwork(item_dim, num_layers).to(self.device)
         self.target_network.load_state_dict(self.q_network.state_dict())
         self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=1e-6)
         
@@ -239,6 +241,7 @@ def train(env: KnapsackEnv, agent: KnapsackTransformerDQNAgent, episodes: int, s
     td_losses = []
     epsilons = []
     summary_freq = 1
+    _start_time = time.time()
     
     for e in range(episodes):
         obs = env.reset()
@@ -271,26 +274,26 @@ def train(env: KnapsackEnv, agent: KnapsackTransformerDQNAgent, episodes: int, s
         
         cumulative_reward_list.append(cumulative_reward)
         if e % summary_freq == 0:
-            print(f"Episode: {e}, Cumulative Reward: {cumulative_reward}")
+            print(f"Training time: {time.time() - _start_time:.2f}, Episode: {e}, Cumulative Reward: {cumulative_reward}")
             
     return cumulative_reward_list, td_losses, epsilons
 
 def inference(env: KnapsackEnv, agent: KnapsackTransformerDQNAgent):
     obs = env.reset()
     terminated = False
-    cumulative_reward = 0.0
+    total_value = 0.0
     
     while not terminated:
         action = agent.select_action(torch.from_numpy(obs))
-        obs, reward, terminated, _ = env.step(action.item())
-        cumulative_reward += reward
+        obs, reward, terminated, info = env.step(action.item())
+        total_value += info["value"]
         
-    return cumulative_reward
+    return total_value
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("problem_name", type=str)
-    parser.add_argument("--episodes", type=int, default=10000)
+    parser.add_argument("--episodes", type=int, default=300)
     parser.add_argument("--summary_freq", type=int, default=10)
     parser.add_argument("--epoch", type=int, default=3)
     parser.add_argument("--gamma", type=float, default=1)
@@ -301,6 +304,7 @@ if __name__ == '__main__':
     parser.add_argument("--replay_buffer_max_size", type=int, default=10000)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--num_layers", type=int, default=2)
     
     args = parser.parse_args()
     problem_name = args.problem_name
@@ -326,6 +330,7 @@ if __name__ == '__main__':
         tau=args.tau,
         replay_buffer_max_size=args.replay_buffer_max_size,
         batch_size=args.batch_size,
+        num_layers=args.num_layers,
         device=args.device,
     )
     
