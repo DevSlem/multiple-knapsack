@@ -42,10 +42,10 @@ class KnapsackEnv(gym.Env):
         if self.items is None or self.capacities is None:       #Random Generation
             max_value = 10
             max_weight = 10
-            max_capacity = 10
+            max_capacity = 20
             
-            self.num_items = np.random.randint(2, 101)
-            self.num_bags = np.random.randint(10, 30)
+            self.num_items = np.random.randint(2, 151)
+            self.num_bags = np.random.randint(2, 31)
             
             self.values = np.random.randint(1, max_value + 1, self.num_items).astype(np.float32)
             self.weights = np.random.randint(1, max_weight + 1, self.num_items).astype(np.float32)
