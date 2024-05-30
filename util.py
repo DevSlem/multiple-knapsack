@@ -43,6 +43,7 @@ def save_results(
     except FileNotFoundError:
         pass
     
+    result_df["total_value"] = result_df["total_value"].astype(pd.Int64Dtype())
     result_df["episodes"] = result_df["episodes"].astype(pd.Int64Dtype())
     result_df.to_csv(f"{directory}/results.csv", index=False)
     return result_df
