@@ -2,7 +2,7 @@ import pulp
 import argparse
 import time
 import json
-from util import make_directory, load_knapsack_problem
+from util import make_directory, load_knapsack_problem, save_results
 import numpy as np
 
 def solve_knapsack_with_ip(values, weights, capacities):
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     start_time = time.time()
     ip_result = solve_knapsack_with_ip(values, weights, capacities)
     end_time = time.time()
-    train_time = end_time - start_time
+    inference_time = end_time - start_time
     
     total_value = ip_result["Total Value"]
     status = ip_result["Status"]
@@ -66,32 +66,13 @@ if __name__ == '__main__':
     for key in ip_result["Items in Knapsacks"]:
         policy[key[0]] = key[1] + 1
     
-    result_dict = dict()
-    result_dict["method"] = "Integer Programming"
-    result_dict["n_knapsacks"] = len(knapsack_df)
-    result_dict["n_items"] = len(item_df)
-    result_dict["time"] = train_time
-    result_dict["solution"] = {
-        "total_value": int(total_value),
-        "status": status
-    }
-    for knapsack_id in knapsack_df["id"]:
-        result_dict["solution"][knapsack_id] = {"items": []}
-    for i, a in enumerate(policy):
-        knapsack_id = knapsack_df["id"][a - 1] if a > 0 else None
-        if knapsack_id is not None:
-            result_dict["solution"][knapsack_id]["items"].append(item_df["id"][i])
-    for knapsack_id in knapsack_df["id"]:
-        result_dict["solution"][knapsack_id]["value"] = np.sum([item_df["value"][item_df["id"] == i].values[0] for i in result_dict["solution"][knapsack_id]["items"]], dtype=np.int64).item()
-        result_dict["solution"][knapsack_id]["weight"] = np.sum([item_df["weight"][item_df["id"] == i].values[0] for i in result_dict["solution"][knapsack_id]["items"]], dtype=np.int64).item()
-        result_dict["solution"][knapsack_id]["capacity"] = knapsack_df["capacity"][knapsack_df["id"] == knapsack_id].values[0].item()
+    result_df = save_results(
+        problem_name=problem_name,
+        method="Integer Programming",
+        total_value=total_value,
+        inference_time=inference_time,
+    )
     
-    directory = f"results/{problem_name}/integer_programming"
-    make_directory(directory)
-    with open(f"{directory}/result.json", 'w') as f:
-        json.dump(result_dict, f, indent=4)
+    print("Inference results (the last one is the current result):")
+    print(result_df)
     
-    print("\nInteger Programming Solution:")
-    print("Status:", status)
-    print("Total value from Q-learning:", total_value)
-    print("Time:", train_time)

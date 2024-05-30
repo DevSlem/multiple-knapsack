@@ -1,5 +1,5 @@
 import unittest
-from dqn_transformer import KnapsackTransformerDQNAgent
+from dqn_transformer import KnapsackDQNTransformerAgent
 import torch
 import numpy as np
 from KnapsackEnv import KnapsackEnv
@@ -15,7 +15,7 @@ class TestClass(unittest.TestCase):
         items = [(np.random.randint(1, 11), np.random.randint(1, 11)) for _ in range(n_items)]
         capacities = [np.random.randint(10, 50) for _ in range(n_knapsacks)]
         
-        agent = KnapsackTransformerDQNAgent(
+        agent = KnapsackDQNTransformerAgent(
             item_dim=item_dim,
             selectability_flag_idx=3,
             replay_buffer_max_size=100,

@@ -2,7 +2,7 @@ import numpy as np
 import argparse
 import time
 import json
-from util import make_directory, load_knapsack_problem
+from util import make_directory, load_knapsack_problem, save_results
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -123,39 +123,15 @@ if __name__ == '__main__':
     end_time = time.time()
     train_time = end_time - start_time
     
-    policy = learner.get_policy()
-    total_value = learner.get_total_value()
-    
-    result_dict = dict()
-    result_dict["method"] = "Q-learning"
-    result_dict["n_knapsacks"] = len(knapsack_df)
-    result_dict["n_items"] = len(item_df)
-    result_dict["time"] = train_time
-    result_dict["episodes"] = episodes
-    result_dict["solution"] = {
-        "total_value": total_value.item(),
-    }
-    for knapsack_id in knapsack_df["id"]:
-        result_dict["solution"][knapsack_id] = {"items": []}
-    for i, a in enumerate(policy):
-        knapsack_id = knapsack_df["id"][a - 1] if a > 0 else None
-        if knapsack_id is not None:
-            result_dict["solution"][knapsack_id]["items"].append(item_df["id"][i])
-    for knapsack_id in knapsack_df["id"]:
-        result_dict["solution"][knapsack_id]["value"] = np.sum([item_df["value"][item_df["id"] == i].values[0] for i in result_dict["solution"][knapsack_id]["items"]], dtype=np.int64).item()
-        result_dict["solution"][knapsack_id]["weight"] = np.sum([item_df["weight"][item_df["id"] == i].values[0] for i in result_dict["solution"][knapsack_id]["items"]], dtype=np.int64).item()
-        result_dict["solution"][knapsack_id]["capacity"] = knapsack_df["capacity"][knapsack_df["id"] == knapsack_id].values[0].item()
-    
-    directory = f"results/{problem_name}/qlearning"
+    # save train results
+    directory = f"results/train/{problem_name}-qlearning"
     make_directory(directory)
-    with open(f"{directory}/result.json", 'w') as f:
-        json.dump(result_dict, f, indent=4)
         
     plt.plot(epsilons)
     plt.title(f"Epsilon Decay ({eps_decay})")
     plt.xlabel("Episode")
     plt.ylabel(f"Epsilon")
-    plt.savefig(f"{directory}/epsilon_decay.png")
+    plt.savefig(f"{directory}/epsilons.png")
     plt.close()
     
     plt.plot(cumulative_rewards)
@@ -165,7 +141,20 @@ if __name__ == '__main__':
     plt.savefig(f"{directory}/cumulative_rewards.png")
     plt.close()
     
-    print("\nQ-Learning Solution:")
-    print("Total value from Q-learning:", total_value)
-    print("Time:", train_time)
+    # policy = learner.get_policy()
+    start_time = time.time()
+    total_value = learner.get_total_value()
+    inference_time = time.time() - start_time
     
+    # save inference results
+    result_df = save_results(
+        problem_name=problem_name,
+        method="Q-learning",
+        total_value=total_value,
+        episodes=episodes,
+        train_time=train_time,
+        inference_time=inference_time,
+    )
+    
+    print("Inference results (the last one is the current result):")
+    print(result_df)

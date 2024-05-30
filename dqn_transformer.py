@@ -106,7 +106,7 @@ class KnapsackQNetwork(nn.Module):
         q_value = self.q_value_layer(transformer_output)
         return q_value.squeeze(-1)
     
-class KnapsackTransformerDQNAgent:
+class KnapsackDQNTransformerAgent:
     """
     In this problem, the observation of a state is represented by the matrix obtained stacking all the item vectors together. 
     The observation shape is `(n_knapsacks x n_items, item_dim)`.
@@ -240,7 +240,7 @@ class KnapsackTransformerDQNAgent:
         return self.replay_buffer_dict[n_knapsack_x_items]
     
     
-def train(env: KnapsackEnv, agent: KnapsackTransformerDQNAgent, episodes: int, summary_freq: int):
+def train(env: KnapsackEnv, agent: KnapsackDQNTransformerAgent, episodes: int, summary_freq: int):
     cumulative_reward_list = []
     td_losses = []
     epsilons = []
@@ -282,7 +282,7 @@ def train(env: KnapsackEnv, agent: KnapsackTransformerDQNAgent, episodes: int, s
             
     return cumulative_reward_list, td_losses, epsilons
 
-def inference(env: KnapsackEnv, agent: KnapsackTransformerDQNAgent):
+def inference(env: KnapsackEnv, agent: KnapsackDQNTransformerAgent):
     obs = env.reset()
     terminated = False
     total_value = 0.0
@@ -319,7 +319,7 @@ if __name__ == '__main__':
     if inference_problem is None:
         env = KnapsackEnv()
         
-        agent = KnapsackTransformerDQNAgent(
+        agent = KnapsackDQNTransformerAgent(
             item_dim=5,
             selectability_flag_idx=3,
             epoch=args.epoch,
@@ -376,7 +376,7 @@ if __name__ == '__main__':
             capacities=knapsack_df['capacity'].values,
         )
         
-        agent = KnapsackTransformerDQNAgent(
+        agent = KnapsackDQNTransformerAgent(
             item_dim=5,
             selectability_flag_idx=3,
             epoch=0,
