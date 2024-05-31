@@ -223,14 +223,14 @@ def train(env: KnapsackEnv, agent: KnapsackTransformerREINFORCEAgent, episodes: 
 def inference(env: KnapsackEnv, agent: KnapsackTransformerREINFORCEAgent):
     obs = env.reset()
     terminated = False
-    total_value = 0.0
+    total_value = 0
     
     while not terminated:
         action = agent.select_action(torch.from_numpy(obs))
         obs, reward, terminated, info = env.step(action.item())
         total_value += info["value"]
         
-    return round(total_value.item())
+    return total_value
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

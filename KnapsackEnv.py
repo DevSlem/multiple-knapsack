@@ -92,7 +92,7 @@ class KnapsackEnv(gym.Env):
         next_state = self._make_state()  # Add batch dimension
         norm_next_state = self._normalize_state(next_state)
         
-        return norm_next_state[np.newaxis, ...], norm_reward, done, {"value": reward.item()} 
+        return norm_next_state[np.newaxis, ...], norm_reward, done, {"value": reward} 
     
     def _make_state(self):
         state = np.empty((self.num_items * self.num_bags, self.item_dim), dtype=np.float32)
