@@ -8,7 +8,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class MultiKnapsackQLearning:
-    def __init__(self, values, weights, capacities, lr=0.1, gamma=0.95, episodes=1000, eps=1.0, eps_decay=0.995, eps_min=0.01):
+    def __init__(
+        self, 
+        values, 
+        weights, 
+        capacities, 
+        lr=0.1, 
+        gamma=0.95, 
+        episodes=1000, 
+        eps=1.0, 
+        eps_decay=0.995, 
+        eps_min=0.01,
+        summary_freq=500,
+    ):
         self.values = np.array(values)
         self.weights = np.array(weights)
         self.initial_capacities = np.array(capacities)
@@ -18,6 +30,8 @@ class MultiKnapsackQLearning:
         self.eps = eps
         self.eps_decay = eps_decay
         self.eps_min = eps_min
+        self.summary_freq = summary_freq
+        
         self.n_items = len(values)
         self.n_knapsacks = len(capacities)
         
@@ -65,6 +79,9 @@ class MultiKnapsackQLearning:
             
             # epsilon decay
             self.eps = max(self.eps * self.eps_decay, self.eps_min)
+            
+            if episode % self.summary_freq == 0:
+                print(f"Episode: {episode}, Cumulative Reward: {cumulative_reward}")
         
         return epsilons, cumulative_rewards
 
@@ -95,6 +112,7 @@ if __name__ == '__main__':
     parser.add_argument("--eps_decay", type=float, default=0.995)
     parser.add_argument("--lr", type=float, default=0.1)
     parser.add_argument("--eps_min", type=float, default=0.01)
+    parser.add_argument("--summary_freq", type=int, default=500)
     args = parser.parse_args()
     problem_name = args.problem_name
     episodes = args.episodes
@@ -108,11 +126,6 @@ if __name__ == '__main__':
     capacities = knapsack_df['capacity'].values
     values = item_df['value'].values
     weights = item_df['weight'].values
-    
-    print("Knapsack Problem:")
-    print("Values:", values)
-    print("Weights:", weights)
-    print("Capacities:", capacities)
     
     learner = MultiKnapsackQLearning(values, weights, capacities, lr=lr, gamma=gamma, episodes=episodes, eps=eps, eps_decay=eps_decay, eps_min=eps_min)
     
