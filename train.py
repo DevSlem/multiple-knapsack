@@ -4,8 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 
 import argparse
 from util import make_directory, load_knapsack_problem
