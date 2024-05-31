@@ -78,7 +78,7 @@ class KnapsackEnv(gym.Env):
             self.selectable[item_idx, :] = False
             self.remaining_capacities[bag_idx] -= self.weights[item_idx]
             reward += self.values[item_idx]
-            norm_reward = np.float32(reward) / np.float32(self.max_item_weight) #normalization
+            norm_reward = np.float32(reward) / np.float32(self.max_item_value) #normalization
 
         # set selectable
         self._update_selctable_matrix()
