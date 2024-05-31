@@ -71,4 +71,8 @@ The most important file is `results.csv` in `results/inference/[PROBLEM_NAME]` d
 
 You can compare and visualize the results using the following command:
 
-TODO: Not implemented yet.
+```bash
+python summary.py [PROBLEM_NAMES...]
+```
+
+where `[PROBLEM_NAMES...]` is the names of the problems. For example, if you want to compare the results of the problems named `example1` and `example2`, you can use the following command: `$ python summary.py example1 example2`. Also, you can compare the results of all problems using the following command: `$ python summary.py`. The results are saved in the `results/summary` directory.
