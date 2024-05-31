@@ -34,12 +34,12 @@ class KnapsackEnv(gym.Env):
         # profit, weights [10^-6, 1], normalization will be done just before return     
         
         if self.items is None or self.capacities is None:           #Random Generation
-            max_value = 10
-            max_weight = 10
-            max_capacity = 20
+            max_value = 20
+            max_weight = 20
+            max_capacity = 50
             
-            self.num_items = np.random.randint(2, 151)
-            self.num_bags = np.random.randint(2, 31)
+            self.num_items = np.random.randint(2, 201)
+            self.num_bags = np.random.randint(2, 21)
             self.values = np.random.randint(1, max_value + 1, self.num_items)
             self.weights = np.random.randint(1, max_weight + 1, self.num_items)
             self.capacities = np.random.randint(1, max_capacity + 1, self.num_bags)                        

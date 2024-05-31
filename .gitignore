@@ -160,8 +160,8 @@ cython_debug/
 #.idea/
 
 .vscode/
-problems/
-results/
+/problems
+/results
 
 data/
 data.py

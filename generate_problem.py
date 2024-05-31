@@ -8,9 +8,9 @@ if __name__ == '__main__':
     parser.add_argument("problem_name", type=str, help="Name of the problem")
     parser.add_argument("n_knapsacks", type=int, help="Number of knapsacks")
     parser.add_argument("n_items", type=int, help="Number of items")
-    parser.add_argument("--max_capacity", type=int, default=10, help="Maximum capacity of each knapsack")
-    parser.add_argument("--max_value", type=int, default=10, help="Maximum value of each item")
-    parser.add_argument("--max_weight", type=int, default=10, help="Maximum weight of each item")
+    parser.add_argument("--max_capacity", type=int, default=50, help="Maximum capacity of each knapsack")
+    parser.add_argument("--max_value", type=int, default=20, help="Maximum value of each item")
+    parser.add_argument("--max_weight", type=int, default=20, help="Maximum weight of each item")
     args = parser.parse_args()
     problem_name = args.problem_name
     n_knapsacks = args.n_knapsacks

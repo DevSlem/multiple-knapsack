@@ -2,7 +2,7 @@ import numpy as np
 import argparse
 import time
 import json
-from util import make_directory, load_knapsack_problem, save_results
+from util import make_directory, load_knapsack_problem, save_results, moving_average
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -106,10 +106,10 @@ class MultiKnapsackQLearning:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("problem_name", type=str)
-    parser.add_argument("--episodes", type=int, default=10000)
+    parser.add_argument("--episodes", type=int, default=100000)
     parser.add_argument("--gamma", type=float, default=1.0)
     parser.add_argument("--eps", type=float, default=1.0)
-    parser.add_argument("--eps_decay", type=float, default=0.995)
+    parser.add_argument("--eps_decay", type=float, default=0.9999)
     parser.add_argument("--lr", type=float, default=0.1)
     parser.add_argument("--eps_min", type=float, default=0.01)
     parser.add_argument("--summary_freq", type=int, default=500)
@@ -147,7 +147,7 @@ if __name__ == '__main__':
     plt.savefig(f"{directory}/epsilons.png")
     plt.close()
     
-    plt.plot(cumulative_rewards)
+    plt.plot(moving_average(np.array(cumulative_rewards), n=100))
     plt.title(f"Cumulative Rewards")
     plt.xlabel("Episode")
     plt.ylabel(f"Cumulative Reward")

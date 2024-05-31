@@ -82,11 +82,7 @@ class KnapsackTransformerREINFORCEAgent:
         self.policy_network = KnapsackPolicyNetwork(item_dim).to(self.device)
         self.optimizer = optim.RMSprop(self.policy_network.parameters(), lr=1e-6)
         
-        self._obs_buffer = []
-        self._action_buffer = []
-        self._next_obs_buffer = []
         self._reward_buffer = []
-        self._terminated_buffer = []
         self._action_log_prob_buffer = []
         self._entropy_buffer = []
         
@@ -133,7 +129,7 @@ class KnapsackTransformerREINFORCEAgent:
         self._entropy_buffer.append(self._entropy)
         
         if terminated.item():
-            loss, entropy = self._train()
+            loss, entropy = self._train()       
             return {
                 "policy_loss": loss,
                 "entropy": entropy,
@@ -152,17 +148,17 @@ class KnapsackTransformerREINFORCEAgent:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        
-        self._reward_buffer.clear()
-        self._action_log_prob_buffer.clear()
-        self._entropy_buffer.clear()
-        
+                
         return loss.item(), entropy.item()
     
     def _buffer_to_tensor(self):
         reward = torch.stack(self._reward_buffer, dim=1).to(self.device)
         action_log_prob = torch.stack(self._action_log_prob_buffer, dim=1).to(self.device)
         entropy = torch.stack(self._entropy_buffer, dim=1).to(self.device)
+        
+        self._reward_buffer.clear()
+        self._action_log_prob_buffer.clear()
+        self._entropy_buffer.clear()
         return reward, action_log_prob, entropy
     
     def _compute_return(self, reward: torch.Tensor) -> torch.Tensor:
@@ -237,7 +233,7 @@ if __name__ == '__main__':
     # parser.add_argument("problem_name", type=str)
     parser.add_argument("--inference", "-i", type=str, default=None)
     parser.add_argument("--episodes", type=int, default=10000)
-    parser.add_argument("--summary_freq", type=int, default=100)
+    parser.add_argument("--summary_freq", type=int, default=1)
     parser.add_argument("--gamma", type=float, default=1)
     parser.add_argument("--entropy_coef", type=float, default=0.001)
     parser.add_argument("--device", type=str, default="cuda")
