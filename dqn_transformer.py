@@ -4,7 +4,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import random
 from KnapsackEnv import KnapsackEnv
-from util import load_knapsack_problem, make_directory, save_results
+from util import load_knapsack_problem, make_directory, save_results, moving_average
 import argparse
 import matplotlib.pyplot as plt
 import time
@@ -348,14 +348,14 @@ if __name__ == '__main__':
         }
         torch.save(ckpt_dict, f"{directory}/checkpoint.pt")
         
-        plt.plot(cumulative_reward_list)
+        plt.plot(moving_average(cumulative_reward_list, smooth=0.01))
         plt.title("Cumulative Rewards")
         plt.xlabel('Episodes')
         plt.ylabel('Cumulative Reward')
         plt.savefig(f"{directory}/cumulative_rewards.png")
         plt.close()
         
-        plt.plot(td_losses)
+        plt.plot(moving_average(td_losses, smooth=0.01))
         plt.title("TD Losses")
         plt.xlabel('Steps')
         plt.ylabel('TD Loss')

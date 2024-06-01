@@ -46,9 +46,9 @@ for problem_name in problem_names:
     
     for method in result_dict[problem_name]["method"].unique():
         result_row = result_dict[problem_name].loc[result_dict[problem_name]["method"] == method]
-        total_value = result_row["total_value"].values[0]
-        train_time = result_row["train_time"].values[0]
-        inference_time = result_row["inference_time"].values[0]
+        total_value = result_row["total_value"].values[-1]
+        train_time = result_row["train_time"].values[-1]
+        inference_time = result_row["inference_time"].values[-1]
         
         total_values_dict[method][problem_name] = total_value
         train_times_dict[method][problem_name] = train_time

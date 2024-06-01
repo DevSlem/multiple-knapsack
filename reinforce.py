@@ -1,14 +1,16 @@
+import argparse
+import time
+
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from KnapsackEnv import KnapsackEnv
-from util import load_knapsack_problem, make_directory, save_results
-import argparse
-import matplotlib.pyplot as plt
-import time
-import json
 from torch.distributions import Categorical
-import pandas as pd
+
+from KnapsackEnv import KnapsackEnv
+from util import (load_knapsack_problem, make_directory, moving_average,
+                  save_results)
+
 
 class KnapsackPolicyNetwork(nn.Module):
     def __init__(
@@ -32,7 +34,7 @@ class KnapsackPolicyNetwork(nn.Module):
             num_layers=2,
         )
         
-        self.q_value_layer = nn.Sequential(
+        self.policy_layer = nn.Sequential(
             nn.Linear(512, 512),
             nn.ReLU(),
             nn.Linear(512, 1),
@@ -50,8 +52,9 @@ class KnapsackPolicyNetwork(nn.Module):
         """
         obs_embedding = self.obs_embedding_layer(obs)
         transformer_output = self.transformer_layer(obs_embedding)
-        q_value = self.q_value_layer(transformer_output)
-        return q_value.squeeze(-1)
+        logits = self.policy_layer(transformer_output)
+        logits = 10.0 * logits.tanh()
+        return logits.squeeze(-1)
     
 class KnapsackTransformerREINFORCEAgent:
     """
@@ -96,7 +99,7 @@ class KnapsackTransformerREINFORCEAgent:
         Returns:
             action (Tensor): `(num_envs,)`, the index of the selected knapsack and item
         """
-        nonselectable_mask = obs[:, :, self.selectability_flag_idx] == 0
+        nonselectable_mask = obs[:, :, self.selectability_flag_idx] < 0.5
            
         logits = self.policy_network(obs.to(self.device))
         logits[nonselectable_mask] = -float('inf')
@@ -181,17 +184,17 @@ def train(env: KnapsackEnv, agent: KnapsackTransformerREINFORCEAgent, episodes: 
     for e in range(episodes):
         obs = env.reset()
         obs = torch.from_numpy(obs)
-        terminated = False
+        done = False
         cumulative_reward = 0.0
         total_value = 0.0
         
-        while not terminated:
+        while not done:
             action = agent.select_action(obs)
-            next_obs, reward, terminated, info = env.step(action.item())
+            next_obs, reward, done, info = env.step(action.item())
             
             next_obs = torch.from_numpy(next_obs)
             reward = torch.tensor([reward], dtype=torch.float32)
-            terminated = torch.tensor([terminated], dtype=torch.float32)
+            terminated = torch.tensor([done], dtype=torch.float32)
             
             agent_info = agent.update(
                 obs=obs,
@@ -232,8 +235,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # parser.add_argument("problem_name", type=str)
     parser.add_argument("--inference", "-i", type=str, default=None)
-    parser.add_argument("--episodes", type=int, default=10000)
-    parser.add_argument("--summary_freq", type=int, default=1)
+    parser.add_argument("--episodes", type=int, default=20000)
+    parser.add_argument("--summary_freq", type=int, default=10)
     parser.add_argument("--gamma", type=float, default=1)
     parser.add_argument("--entropy_coef", type=float, default=0.001)
     parser.add_argument("--device", type=str, default="cuda")
@@ -267,24 +270,25 @@ if __name__ == '__main__':
         ckpt_dict = {
             "agent": agent.policy_network.state_dict(),
             "train_time": train_time,
+            "episodes": episodes,
         }
         torch.save(ckpt_dict, f"{directory}/checkpoint.pt")
         
-        plt.plot(cumulative_reward_list)
+        plt.plot(moving_average(cumulative_reward_list, smooth=0.01))
         plt.title("Cumulative Rewards")
         plt.xlabel('Episodes')
         plt.ylabel('Cumulative Reward')
         plt.savefig(f"{directory}/cumulative_rewards.png")
         plt.close()
         
-        plt.plot(policy_losses)
+        plt.plot(moving_average(policy_losses, smooth=0.01))
         plt.title("Policy Losses")
         plt.xlabel('Steps')
         plt.ylabel('Policy Loss')
         plt.savefig(f"{directory}/policy_losses.png")
         plt.close()
         
-        plt.plot(entropies)
+        plt.plot(moving_average(entropies, smooth=0.01))
         plt.title(f"Entropies")
         plt.xlabel('Steps')
         plt.ylabel('Entropy')

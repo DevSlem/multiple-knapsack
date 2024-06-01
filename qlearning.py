@@ -147,7 +147,7 @@ if __name__ == '__main__':
     plt.savefig(f"{directory}/epsilons.png")
     plt.close()
     
-    plt.plot(moving_average(np.array(cumulative_rewards), n=100))
+    plt.plot(moving_average(cumulative_rewards, smooth=0.01))
     plt.title(f"Cumulative Rewards")
     plt.xlabel("Episode")
     plt.ylabel(f"Cumulative Reward")

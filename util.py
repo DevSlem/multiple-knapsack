@@ -15,7 +15,7 @@ def load_knapsack_problem(problem_name: str) -> tuple[pd.DataFrame, pd.DataFrame
     item_df = pd.read_csv(f"problems/{problem_name}/items.csv")
     return knapsack_df, item_df
 
-def moving_average(values: np.ndarray, n: Optional[int] = None, smooth: Optional[float] = None):
+def moving_average(values, n: Optional[int] = None, smooth: Optional[float] = None):
     if (n is None and smooth is None) or (n is not None and smooth is not None):
         raise ValueError("you must specify either n or smooth")
     if smooth is not None:
