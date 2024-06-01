@@ -56,20 +56,27 @@ for problem_name in problem_names:
         
         
 def plot_summary(x_dict, y_dict, xlabel, ylabel, title, save_path, logscale=False):
+    x_dict = {problem: value for problem, value in sorted(x_dict.items(), key=lambda x: x[1])}
+    problem_to_index = {problem: index for index, problem in enumerate(x_dict.keys())}
+    ticks = np.arange(len(x_dict))
+    xlabels = list(x_dict.values())
+    
     for method in y_dict.keys():
         valid_y = {problem: value for problem, value in y_dict[method].items() if value is not None}
         if not valid_y:
             continue
-        valid_x = [x_dict[problem] for problem in valid_y.keys()]
+        
+        # sort valid_y by x_dict
+        valid_y = {problem: valid_y[problem] for problem in x_dict.keys() if problem in valid_y}
+        valid_problems = valid_y.keys()
+        index = [problem_to_index[problem] for problem in valid_problems]
+        
+        valid_x = [x_dict[problem] for problem in valid_problems]
         valid_y = list(valid_y.values())
-        
-        valid_x = sorted(valid_x)
         valid_y = [y for x, y in sorted(zip(valid_x, valid_y))]
-        valid_x = [f"{x}" for x in valid_x]
-        
-        index = np.arange(len(valid_x))
+
         plt.plot(index, valid_y, label=method, marker='o')
-        plt.xticks(index, valid_x)
+        plt.xticks(ticks, xlabels)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.title(title)
@@ -84,8 +91,10 @@ util.make_directory("results/summary")
 
 normalized_total_values_dict = defaultdict(dict)
 for problem_name in problem_names:
-    max_total_value = max(total_values_dict[method][problem_name] for method in total_values_dict.keys())
+    max_total_value = max(total_values_dict[method][problem_name] for method in total_values_dict.keys() if problem_name in total_values_dict[method])
     for method in total_values_dict.keys():
+        if problem_name not in total_values_dict[method]:
+            continue
         total_value = total_values_dict[method][problem_name]
         normalized_total_value = total_value / max_total_value
         normalized_total_values_dict[method][problem_name] = normalized_total_value

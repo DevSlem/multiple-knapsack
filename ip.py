@@ -67,7 +67,7 @@ if __name__ == '__main__':
     start_time = time.time()
     ip_result = solve_knapsack_with_ip(values, weights, capacities, time_limit)
     end_time = time.time()
-    inference_time = end_time - start_time
+    train_time = end_time - start_time
     
     total_value = ip_result["Total Value"]
     status = ip_result["Status"]
@@ -80,7 +80,8 @@ if __name__ == '__main__':
         problem_name=problem_name,
         method="Integer Programming",
         total_value=total_value,
-        inference_time=inference_time,
+        train_time=train_time,
+        inference_time=train_time,
         optimal=is_optimal
     )
     
