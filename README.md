@@ -30,15 +30,15 @@ python generate_problem.py [PROBLEM_NAME] [NUM_KNAPSACKS] [NUM_ITEMS]
 
 where `[PROBLEM_NAME]` is the name of the problem, `[NUM_KNAPSACKS]` is the number of knapsacks, and `[NUM_ITEMS]` is the number of items. Then, you can see the generated problem in the `problems/[PROBLEM_NAME]` directory. Specifically, there are two csv files generated: `knapsacks.csv` and `items.csv`. See details in the `generate_problem.py` file.
 
-You can train the below methods using the following command:
+You can train the below methods using the following command (method link to the algorithm):
 
 | Method | Command | Multiple Instances | Inference | 
 | --- | --- | --- | --- |
 | Integer Programming | `python ip.py [PROBLEM_NAME]` | ❌  | Immediate |
 | Q-learning | `python qlearning.py [PROBLEM_NAME]` | ❌  | Immediate |
 | DQN | `python dqn.py [PROBLEM_NAME]` | ❌  | Immediate |
-| DQN with Transformer | `python dqn_transformer.py` | ✅ | `--inference` or `-i` |
-| REINFORCE | `python reinforce.py` | ✅ | `--inference` or `-i` |
+| [DQN with Transformer](img/dqn-transformer-algorithm.png) | `python dqn_transformer.py` | ✅ | `--inference` or `-i` |
+| [REINFORCE](img/reinforce-algorithm.png) | `python reinforce.py` | ✅ | `--inference` or `-i` |
 
 where `[PROBLEM_NAME]` is the name of the problem.
 
