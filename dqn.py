@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from multiKnapsackEnv import *
 
 import argparse
-from util import make_directory, load_knapsack_problem
+from util import make_directory, load_knapsack_problem, save_results
 
 import time
 import json
@@ -101,11 +101,16 @@ class DQN:
         Returns:
             action (ndarray): `(n_envs,)`
         """
-        # actions = [k0i0, k0i1, k0i2, k1i0, k1i1, k1i2]
-        # nonselectability_flags = [0, 1, 0]
-        # in this case, k0i1 and k1i1 are non-selectable
+        # mask = np.zeros(self.n_actions, dtype=bool)
+        # for i in range(self.n_nonselectability_flags):
+        #     for j in range(self.n_actions / self.n_nonselectability_flags):
+        #         if self.selection_status[i] == 0 and self.bag_capacities[j] >= self.item_weights[i]:
+        #             mask[i + j * self.num_items] = True
+        # return mask
+
         # nonselectability_flags = obs[:, -self.n_nonselectability_flags:]
         # nonselectable_mask = np.concatenate([nonselectability_flags for _ in range(self.n_actions // self.n_nonselectability_flags)], axis=-1).astype(bool)
+        
         if np.random.rand() < self.eps:
             rand_logits = np.random.rand(obs.shape[0], self.n_actions)
             rand_logits[~torch.BoolTensor(mask)] = -float('inf')
@@ -118,9 +123,7 @@ class DQN:
             obs = obs.clone().detach().to(self.device)
         # obs = torch.tensor(obs, dtype=torch.float32).to(self.device)
         q_values = self.q_network(obs)
-        # q_values[torch.from_numpy(nonselectable_mask)] = -float('inf')
         q_values[~torch.BoolTensor(mask)] = -float('inf')
-        
         return torch.argmax(q_values, dim=-1).cpu().numpy()
     
     def update(self, obs: np.ndarray, action: np.ndarray, next_obs: np.ndarray, reward: np.ndarray, terminated: np.ndarray):
@@ -139,8 +142,12 @@ class DQN:
         
         if self.replay_buffer.size < self.replay_buffer.batch_size:
             return
-        
-        return self._train()
+
+        td_losses = self._train()
+        return {
+            "td_losses": td_losses,
+            "eps": self.eps,
+        }
         
     def _train(self):
         td_losses = []
@@ -179,12 +186,151 @@ class DQN:
         if self.time_step % self.target_net_update_freq == 0:
             self.target_network.load_state_dict(self.q_network.state_dict())
 
+def inference(env, dqn):
+    obs = env.reset()
+    terminated = False
+    total_value = 0.0
+    mask = np.zeros((1, len(values) * len(capacities)), dtype=bool)
+            
+    while not terminated:
+        action = dqn.select_action(obs, mask)
+        obs, reward, terminated, mask = env.step(action)
+        total_value += reward
+        print(total_value)
+
+    return total_value
+
+def train(env, dqn, episodes):
+    td_loss_list = []
+    cumulative_reward_list = []
+    epsilons = []
+    start_time = time.time()
+    for e in range(episodes):
+        print(e)
+        obs = env.reset()
+        terminated = False
+        cumulative_reward = 0.0
+        mask = np.zeros((1, len(values) * len(capacities)), dtype=bool)
+        while not terminated:
+            # select action
+            action = dqn.select_action(obs, mask)
+            
+            # take the action then observe next state and reward
+            next_obs, reward, terminated, _mask = env.step(action)
+            
+            # action = np.array([action]) # (n_envs,)
+            # next_obs = next_obs[np.newaxis, :] # (n_envs, obs_dim)
+            # reward = np.array([reward]) # (n_envs,)
+            # terminated = np.array([terminated]) # (n_envs,)
+            
+            # update DQN
+            dqn_info = dqn.update(obs, action, next_obs, reward, terminated)
+            if dqn_info is not None:
+                td_loss_list.append(np.mean(dqn_info["td_losses"]))
+                epsilons.append(dqn_info["eps"])
+            # transition to the next state
+            obs = next_obs
+            mask = _mask
+            cumulative_reward += reward
+            # print(f'cumulative_reward : {cumulative_reward}')
+
+        
+        cumulative_reward_list.append(cumulative_reward)
+        if cumulative_reward_list[e].shape == (1,):
+            cumulative_reward_list[e] = cumulative_reward_list[e][0]
+        print(f'cumulative_reward : {cumulative_reward}')
+    return cumulative_reward_list, td_loss_list, epsilons
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("problem_name", type=str)
+    parser.add_argument("--inference", "-i", type=str, default=None)
+    parser.add_argument("--bag", type=int, default=None)
+    parser.add_argument("--item", type=int, default=None)
+    parser.add_argument("--episodes", type=int, default=100)
+    parser.add_argument("--eps_decay", type=float, default=0.995)
     args = parser.parse_args()
-    for idx in range(1, 11):
-        problem_name = args.problem_name + str(idx)
+    inference_problem = args.inference
+    problem_name = args.problem_name
+    episodes = args.episodes
+    num_bags = args.bag
+    num_items = args.item
+
+    if inference_problem is None:
+        # dqn = DQN(2 * len(values) + len(capacities) + len(values), len(values) * len(capacities), len(values))
+        dqn = DQN(3 * num_items + num_bags, num_bags * num_items, num_items)
+        cumulative_reward_list = []
+        td_loss_list = []
+        start_time = time.time()
+        for _ in range(0, 1):
+            capacities = np.random.randint(5, 31, num_bags)
+            values = np.random.randint(1, 11, num_items)
+            weights = np.random.randint(1, 11, num_items)
+
+            items = []
+            for i in range(len(values)):
+                items.append((values[i], weights[i]))
+                
+            env = MultiKnapsackEnv(items, capacities)
+            
+            _cumulative_reward_list, _td_loss_list, epsilons = train(env, dqn, episodes = episodes)
+            cumulative_reward_list.extend(_cumulative_reward_list)
+            td_loss_list.extend(_td_loss_list)
+
+        end_time = time.time()
+        train_time = end_time - start_time
+
+        directory = "results/train/dqn/" + problem_name
+        make_directory(directory)
+        ckpt_dict = {
+            "agent": dqn.q_network.state_dict(),
+            "train_time": train_time,
+            "episodes": episodes,
+        }
+        torch.save(ckpt_dict, f"{directory}/checkpoint.pt")
+
+        plt.plot(cumulative_reward_list)
+        plt.title("Cumulative Rewards")
+        plt.xlabel('Episodes')
+        plt.ylabel('Cumulative Reward')
+        plt.savefig(f"{directory}/cumulative_rewards.png")
+        plt.close()
+        
+        plt.plot(td_loss_list)
+        plt.title("TD Losses")
+        plt.xlabel('Steps')
+        plt.ylabel('TD Loss')
+        plt.savefig(f"{directory}/td_losses.png")
+        plt.close()
+        
+        plt.plot(epsilons)
+        plt.title(f"Epsilon Decay {args.eps_decay}")
+        plt.xlabel('Steps')
+        plt.ylabel('Epsilon')
+        plt.savefig(f"{directory}/epsilons.png")
+        plt.close()
+
+        # result_dict = dict()
+        # result_dict["method"] = "DQN"
+        # result_dict["n_knapsacks"] = len(knapsack_df)
+        # result_dict["n_items"] = len(item_df)
+        # result_dict["time"] = train_time
+        # result_dict["solution"] = {
+        #     "total_value": int(max(cumulative_reward_list))
+        # }
+
+        # directory = f"results/{problem_name}/dqn"
+        # make_directory(directory)
+        # with open(f"{directory}/result.json", 'w') as f:
+        #     json.dump(result_dict, f, indent=4)
+
+        # with open(f"{directory}/reward.txt", 'w') as f:
+        #     f.write(str(cumulative_reward_list))
+            
+        # with open(f"{directory}/loss.txt", 'w') as f:
+        #     f.write(str(td_loss_list))
+    else:
+        problem_name = args.problem_name
 
         knapsack_df, item_df = load_knapsack_problem(problem_name)
         capacities = knapsack_df['capacity'].values
@@ -196,86 +342,22 @@ if __name__ == '__main__':
             items.append((values[i], weights[i]))
             
         env = MultiKnapsackEnv(items, capacities)
-
-        EPISODES = 30
         dqn = DQN(2 * len(values) + len(capacities) + len(values), len(values) * len(capacities), len(values))
-        td_loss_list = []
-        cumulative_reward_list = []
+        ckpt_dict = torch.load(f"results/train/dqn/" + problem_name + "/checkpoint.pt")
+        dqn.q_network.load_state_dict(ckpt_dict["agent"])
+        
         start_time = time.time()
-        for e in range(EPISODES):
-            print(e)
-            obs = env.reset()
-            terminated = False
-            cumulative_reward = 0.0
-            mask = np.zeros((1, len(values) * len(capacities)), dtype=bool)
-            while not terminated:
-                # select action
-                action = dqn.select_action(obs, mask)
-                
-                # take the action then observe next state and reward
-                next_obs, reward, terminated, _mask = env.step(action)
-                
-                # action = np.array([action]) # (n_envs,)
-                # next_obs = next_obs[np.newaxis, :] # (n_envs, obs_dim)
-                # reward = np.array([reward]) # (n_envs,)
-                # terminated = np.array([terminated]) # (n_envs,)
-                
-                # update DQN
-                td_losses = dqn.update(obs, action, next_obs, reward, terminated)
-                if td_losses is not None:
-                    td_loss_list.append(np.mean(td_losses))
-                
-                # transition to the next state
-                obs = next_obs
-                mask = _mask
-                cumulative_reward += reward
-                # print(f'cumulative_reward : {cumulative_reward}')
+        total_value = inference(env, dqn)
+        inference_time = time.time() - start_time
 
-            
-            cumulative_reward_list.append(cumulative_reward)
-            if cumulative_reward_list[e].shape == (1,):
-                cumulative_reward_list[e] = cumulative_reward_list[e][0]
-            print(f'cumulative_reward : {cumulative_reward}')
-            # plt.figure(figsize=(10, 5))
-            
-            # plt.subplot(1, 2, 1)
-            # plt.plot(td_loss_list, label='Loss')
-            # plt.title('Loss over Episodes')
-            # plt.ylabel('Loss')
-            # plt.legend()
-            
-            # plt.subplot(1, 2, 2)
-            # plt.plot(cumulative_reward_list, label='Reward')
-            # plt.title('Reward over Episodes')
-            # plt.xlabel('Episodes')
-            # plt.ylabel('Reward')
-            # plt.legend()
+        result_df = save_results(
+            problem_name=problem_name,
+            method="DQN",
+            total_value=total_value,
+            episodes=ckpt_dict["episodes"],
+            train_time=ckpt_dict["train_time"],
+            inference_time=inference_time,
+        )
 
-
-            # plt.show()
-        # TODO: plot td_loss_list and cumulative_reward_list
-
-        end_time = time.time()
-        train_time = end_time - start_time
-
-        result_dict = dict()
-        result_dict["method"] = "DQN"
-        result_dict["n_knapsacks"] = len(knapsack_df)
-        result_dict["n_items"] = len(item_df)
-        result_dict["time"] = train_time
-        result_dict["solution"] = {
-            "total_value": int(max(cumulative_reward_list))
-        }
-
-        directory = f"results/{problem_name}/dqn"
-        make_directory(directory)
-        with open(f"{directory}/result.json", 'w') as f:
-            json.dump(result_dict, f, indent=4)
-
-        with open(f"{directory}/reward.txt", 'w') as f:
-            f.write(str(cumulative_reward_list))
-            
-        with open(f"{directory}/loss.txt", 'w') as f:
-            f.write(str(td_loss_list))
-
-
+        print("Inference results (the last one is the current result):")
+        print(result_df)
