@@ -143,7 +143,8 @@ class KnapsackTransformerREINFORCEAgent:
         reward, action_log_prob, entropy = self._buffer_to_tensor()
         ret = self._compute_return(reward.squeeze(0))
         
-        ret = (ret - ret.mean()) / (ret.std() + 1e-8)
+        std = ret.std() + 1e-8 if len(ret) > 1 else 1.0
+        ret = (ret - ret.mean()) / std
         policy_loss = -(ret * action_log_prob.squeeze(0)).mean()
         entropy = entropy.mean()
         
@@ -177,7 +178,6 @@ def train(env: KnapsackEnv, agent: KnapsackTransformerREINFORCEAgent, episodes: 
     cumulative_reward_list = []
     policy_losses = []
     entropies = []
-    summary_freq = 1
     total_values = []
     _start_time = time.time()
     
@@ -235,8 +235,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # parser.add_argument("problem_name", type=str)
     parser.add_argument("--inference", "-i", type=str, default=None)
-    parser.add_argument("--episodes", type=int, default=20000)
-    parser.add_argument("--summary_freq", type=int, default=10)
+    parser.add_argument("--episodes", type=int, default=50000)
+    parser.add_argument("--summary_freq", type=int, default=100)
     parser.add_argument("--gamma", type=float, default=1)
     parser.add_argument("--entropy_coef", type=float, default=0.001)
     parser.add_argument("--device", type=str, default="cuda")
