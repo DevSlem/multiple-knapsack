@@ -64,15 +64,13 @@ You can train the below methods using the following command:
 | [Integer Programming](#integer-programming) | `python ip.py [PROBLEM_NAME]` | ❌  | Immediate |
 | [Genetic Algorithm](#genetic-algorithm) | `python ga.py [PROBLEM_NAME]` | ❌  | Immediate |
 | [Q-learning](#q-learning) | `python qlearning.py [PROBLEM_NAME]` | ❌  | Immediate |
-| [DQN](#dqn) | `python dqn.py [PROBLEM_NAME]` | ❌  | Immediate |
+| [DQN](#dqn) | `python dqn.py [PROBLEM_NAME]` | ❌  | `--inference` or `-i` |
 | [DQN with Transformer](#dqn-with-transformer) | `python dqn_transformer.py` | ✅ | `--inference` or `-i` |
 | [REINFORCE](#reinforce) | `python reinforce.py` | ✅ | `--inference` or `-i` |
 
-where `[PROBLEM_NAME]` is the name of the problem.
+where `[PROBLEM_NAME]` is the name of the problem. If you want to evaluate the trained model, you should add the `--inference [PROBLEM_NAME]` or `-i [PROBLEM_NAME]` option. See detail hyperparameters in each python file.
 
-> Note: The methods that can be trained on only one specific problem instance immediately evaluate the trained model on the same one as soon as the training is finished. On the other hand, the methods that can be trained on multiple problem instances require the `--inference [PROBLEM_NAME]` or `-i [PROBLEM_NAME]` option to evaluate the trained model on specific problem instances.
-
-See detail hyperparameters in each python file.
+> Note: "DQN with Transformer" requires huge memory due to the replay buffer for each problem size. If you have a memory issue, you can reduce the replay buffer size using `--replay_buffer_max_size` option.
 
 ## Results
 
