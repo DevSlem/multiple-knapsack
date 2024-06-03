@@ -1,7 +1,7 @@
 import random
 import time
 import argparse
-import util
+from util import load_knapsack_problem, save_results
 
 class GeneticAlgorithm:
     def __init__(self, num_items, num_knapsacks, capacities, values, weights, population_size=200, crossover_rate=0.7, mutation_rate=0.05, selection_pressure=0.5, elite_size=5):
@@ -64,30 +64,35 @@ class GeneticAlgorithm:
             self.selection()
             self.generate_new_population()
             best_solution = max(self.population, key=self.calculate_fitness)
-            print(f"Generation {generation}: Best Fitness = {self.calculate_fitness(best_solution)}")
+            
+            if generation % 100 == 0:
+                print(f"Generation {generation}: Best Fitness = {self.calculate_fitness(best_solution)}")
         return self.calculate_fitness(best_solution), best_solution
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("problem_name", type=str)
+    parser.add_argument("--generations", type=int, default=5000)
     args = parser.parse_args()
 
-    for idx in range(0, 9):
-        problem_name = args.problem_name + str(idx)
-        knapsack_df, item_df = load_knapsack_problem(problem_name)
-        capacities = knapsack_df['capacity'].values
-        values = item_df['value'].values
-        weights = item_df['weight'].values
+    problem_name = args.problem_name
+    knapsack_df, item_df = load_knapsack_problem(problem_name)
+    capacities = knapsack_df['capacity'].values
+    values = item_df['value'].values
+    weights = item_df['weight'].values
 
-        start = time.time()
-        ga = GeneticAlgorithm(len(values), len(capacities), capacities, values, weights)
-        fit, gen = ga.run()
-        train_time = time.time() - start
+    start = time.time()
+    ga = GeneticAlgorithm(len(values), len(capacities), capacities, values, weights)
+    fit, gen = ga.run(generations=args.generations)
+    train_time = time.time() - start
 
-        # Save results using save_results function
-        save_results(
-            problem_name=problem_name,
-            method="GA",
-            total_value=int(fit),
-            train_time=train_time,
-        )
+    # Save results using save_results function
+    result_df = save_results(
+        problem_name=problem_name,
+        method="Genetic Algorithm",
+        total_value=int(fit),
+        train_time=train_time,
+        inference_time=train_time,
+    )
+
+    print(result_df)
