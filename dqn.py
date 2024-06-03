@@ -206,7 +206,6 @@ def train(env, dqn, episodes):
     epsilons = []
     start_time = time.time()
     for e in range(episodes):
-        print(e)
         obs = env.reset()
         terminated = False
         cumulative_reward = 0.0
@@ -238,45 +237,37 @@ def train(env, dqn, episodes):
         cumulative_reward_list.append(cumulative_reward)
         if cumulative_reward_list[e].shape == (1,):
             cumulative_reward_list[e] = cumulative_reward_list[e][0]
-        print(f'cumulative_reward : {cumulative_reward}')
+        print(f'episode: {e}, cumulative_reward : {cumulative_reward[0]}')
     return cumulative_reward_list, td_loss_list, epsilons
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("problem_name", type=str)
-    parser.add_argument("--inference", "-i", type=str, default=None)
-    parser.add_argument("--bag", type=int, default=None)
-    parser.add_argument("--item", type=int, default=None)
+    parser.add_argument("--inference", "-i", action="store_true")
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--eps_decay", type=float, default=0.995)
     args = parser.parse_args()
     inference_problem = args.inference
     problem_name = args.problem_name
     episodes = args.episodes
-    num_bags = args.bag
-    num_items = args.item
-
-    if inference_problem is None:
+    
+    if inference_problem == False:
         # dqn = DQN(2 * len(values) + len(capacities) + len(values), len(values) * len(capacities), len(values))
+        knapsack_df, item_df = load_knapsack_problem(problem_name)
+        num_items = len(item_df)
+        num_bags = len(knapsack_df)
+        values = item_df['value'].values
+        weights = item_df['weight'].values
+        capacities = knapsack_df['capacity'].values
+        items = []
+        for i in range(num_items):
+            items.append((values[i], weights[i]))
+        env = MultiKnapsackEnv(items, capacities)
+        
+        
         dqn = DQN(3 * num_items + num_bags, num_bags * num_items, num_items)
-        cumulative_reward_list = []
-        td_loss_list = []
         start_time = time.time()
-        for _ in range(0, 1):
-            capacities = np.random.randint(5, 31, num_bags)
-            values = np.random.randint(1, 11, num_items)
-            weights = np.random.randint(1, 11, num_items)
-
-            items = []
-            for i in range(len(values)):
-                items.append((values[i], weights[i]))
-                
-            env = MultiKnapsackEnv(items, capacities)
-            
-            _cumulative_reward_list, _td_loss_list, epsilons = train(env, dqn, episodes = episodes)
-            cumulative_reward_list.extend(_cumulative_reward_list)
-            td_loss_list.extend(_td_loss_list)
-
+        cumulative_reward_list, td_loss_list, epsilons = train(env, dqn, episodes = episodes)
         end_time = time.time()
         train_time = end_time - start_time
 
@@ -310,25 +301,6 @@ if __name__ == '__main__':
         plt.savefig(f"{directory}/epsilons.png")
         plt.close()
 
-        # result_dict = dict()
-        # result_dict["method"] = "DQN"
-        # result_dict["n_knapsacks"] = len(knapsack_df)
-        # result_dict["n_items"] = len(item_df)
-        # result_dict["time"] = train_time
-        # result_dict["solution"] = {
-        #     "total_value": int(max(cumulative_reward_list))
-        # }
-
-        # directory = f"results/{problem_name}/dqn"
-        # make_directory(directory)
-        # with open(f"{directory}/result.json", 'w') as f:
-        #     json.dump(result_dict, f, indent=4)
-
-        # with open(f"{directory}/reward.txt", 'w') as f:
-        #     f.write(str(cumulative_reward_list))
-            
-        # with open(f"{directory}/loss.txt", 'w') as f:
-        #     f.write(str(td_loss_list))
     else:
         problem_name = args.problem_name
 
@@ -342,7 +314,7 @@ if __name__ == '__main__':
             items.append((values[i], weights[i]))
             
         env = MultiKnapsackEnv(items, capacities)
-        dqn = DQN(2 * len(values) + len(capacities) + len(values), len(values) * len(capacities), len(values))
+        dqn = DQN(2 * len(values) + len(capacities) + len(values), len(values) * len(capacities), len(values), eps=0.0, min_eps=0.0)
         ckpt_dict = torch.load(f"results/train/dqn/" + problem_name + "/checkpoint.pt")
         dqn.q_network.load_state_dict(ckpt_dict["agent"])
         
