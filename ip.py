@@ -1,8 +1,11 @@
-import pulp
 import argparse
 import time
-from util import load_knapsack_problem, save_results
+
 import numpy as np
+import pulp
+
+from src.util import load_knapsack_problem, save_results
+
 
 def solve_knapsack_with_ip(values, weights, capacities, time_limit=3600):
     item_count = len(values)

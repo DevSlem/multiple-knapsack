@@ -1,7 +1,9 @@
+import argparse
 import random
 import time
-import argparse
-from util import load_knapsack_problem, save_results
+
+from src.util import load_knapsack_problem, save_results
+
 
 class GeneticAlgorithm:
     def __init__(self, num_items, num_knapsacks, capacities, values, weights, population_size=200, crossover_rate=0.7, mutation_rate=0.05, selection_pressure=0.5, elite_size=5):

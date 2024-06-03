@@ -2,7 +2,11 @@
 
 Optimize multiple knapsack problem using reinforcement learning. It's one of the most popular problems in combinatorial optimization. 
 
-Specifically, there are $N_I$ items and $N_K$ multiple knapsacks not only one knapsack. Each item has a value $v_i$ and a weight $w_i$, and each knapsack has a capacity $c_k$. The goal is to maximize the total value of the items in the knapsacks without exceeding the capacity of each knapsack. It's defined as mathematical optimization problem:
+Specifically, there are $N_I$ items and $N_K$ multiple knapsacks not only one knapsack. Each item has a value $v_i$ and a weight $w_i$, and each knapsack has a capacity $c_k$. The goal is to maximize the total value of the items in the knapsacks without exceeding the capacity of each knapsack. 
+
+![](img/multiple_knapsack.png)
+
+It's defined as mathematical optimization formulation:
 
 $$
 \begin{align*}
@@ -76,22 +80,25 @@ If you optimize the problems using the above methods, you can see the results in
 
 Train results:
 
-* `results/train/[PROBLEM_NAME]-[METHOD]`: Method that can be trained on only one specific problem instance.
+* `results/train/[METHOD]/[PROBLEM_NAME]`: Method that can be trained on only one specific problem instance.
 * `results/train/[METHOD]`: Method that can be trained on multiple problem instances.
 
 Inference results:
 
 * `results/inference/[PROBLEM_NAME]`
 
-For example, if you optimize the problem named `example` using "Q-learning" method, you can see the training results in the `results/train/example-qlearning` directory and the inference results in the `results/inference/example` directory. Meanwhile, if you train "DQN with Transformer" method, you can see the training results in the `results/train/dqn_transformer` directory. If you evaluate the trained method on the problem named `example`, you can see the inference results in the `results/inference/example` directory.
+For example, if you optimize the problem named `example` using "Q-learning" method, you can see the training results in the `results/train/qlearning/example` directory and the inference results in the `results/inference/example` directory. Meanwhile, if you train "DQN with Transformer" method, you can see the training results in the `results/train/dqn_transformer` directory. If you evaluate the trained method on the problem named `example`, you can see the inference results in the `results/inference/example` directory.
 
 The most important file is `results.csv` in `results/inference/[PROBLEM_NAME]` directory. It contains the summary of the results. The csv table is like this:
 
-| method | total_value | episodes | train_time | inference_time |
-| --- | --- | --- | --- | --- |
-| Integer Programming | 299 | | | 0.14815759658813477 |
-| Q-learning | 171 | 10000 | 5.908851146697998 | 0.00016880035400390625 |
-| DQN with Transformer | 235 | 300 | 8938.396562576294 | 0.2456543445587158 |
+| method | total_value | episodes | train_time | inference_time | optimal |
+| --- | --- | --- | --- | --- | --- |
+| Integer Programming | 1132 | | 17.099641799926758 | 17.099641799926758 | True |
+| Genetic Algorithm | 1022 | | 99.37010979652403 | 99.37010979652403 | |
+| Q-learning | 693 | 100000.0 | 129.4867742061615 | 0.0003199577331542 | |
+| DQN | 815 | 500.0 | 703.8091475963593 | 0.0605506896972656 | |
+| DQN with Transformer | 1040 | 900.0 | 26091.23874163628 | 0.769263744354248 | |
+| REINFORCE | 1073 | 50000.0 | 25081.34827184677 | 1.165057897567749 | |
 
 You can compare and visualize the results using the following command:
 
@@ -99,7 +106,7 @@ You can compare and visualize the results using the following command:
 python summary.py [PROBLEM_NAMES...]
 ```
 
-where `[PROBLEM_NAMES...]` is the names of the problems. For example, if you want to compare the results of the problems named `example1` and `example2`, you can use the following command: `$ python summary.py example1 example2`. Also, you can compare the results of all problems using the following command: `$ python summary.py`. The results are saved in the `results/summary` directory.
+where `[PROBLEM_NAMES...]` is the names of the problems. For example, if you want to compare the results of the problems named `example1` and `example2`, you can use the following command: `$ python summary.py example1 example2`. Also, you can compare the results of all problems if you don't specify any problem: `$ python summary.py`. The results are saved in the `results/summary` directory.
 
 ## Methods
 

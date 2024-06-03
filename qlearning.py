@@ -1,11 +1,13 @@
-import numpy as np
 import argparse
-import time
 import json
-from util import make_directory, load_knapsack_problem, save_results, moving_average
-import matplotlib.pyplot as plt
+import time
 
+import matplotlib.pyplot as plt
 import numpy as np
+
+from src.util import (load_knapsack_problem, make_directory, moving_average,
+                      save_results)
+
 
 class MultiKnapsackQLearning:
     def __init__(
@@ -137,7 +139,7 @@ if __name__ == '__main__':
     train_time = end_time - start_time
     
     # save train results
-    directory = f"results/train/{problem_name}-qlearning"
+    directory = f"results/train/qlearning/{problem_name}"
     make_directory(directory)
         
     plt.plot(epsilons)

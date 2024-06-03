@@ -1,17 +1,16 @@
+import argparse
+import json
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import matplotlib.pyplot as plt
+from src.knapsack_env_linear import *
+from src.util import load_knapsack_problem, make_directory, save_results
 
-from multiKnapsackEnv import *
-
-import argparse
-from util import make_directory, load_knapsack_problem, save_results
-
-import time
-import json
 
 class ReplayBuffer:
     def __init__(self, obs_dim: int, max_size: int, batch_size: int) -> None:

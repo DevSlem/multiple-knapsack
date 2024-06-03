@@ -1,13 +1,17 @@
+import argparse
+import random
+import time
+
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
-import random
-from KnapsackEnv import KnapsackEnv
-from util import load_knapsack_problem, make_directory, save_results, moving_average
-import argparse
-import matplotlib.pyplot as plt
-import time
+import torch.optim as optim
+
+from src.knapsack_env_transformer import KnapsackEnv
+from src.util import (load_knapsack_problem, make_directory, moving_average,
+                      save_results)
+
 
 class ReplayBuffer:
     def __init__(self, obs_shape: tuple[int, ...], max_size: int, batch_size: int):

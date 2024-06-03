@@ -7,9 +7,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical
 
-from KnapsackEnv import KnapsackEnv
-from util import (load_knapsack_problem, make_directory, moving_average,
-                  save_results)
+from src.knapsack_env_transformer import KnapsackEnv
+from src.util import (load_knapsack_problem, make_directory, moving_average,
+                      save_results)
 
 
 class KnapsackPolicyNetwork(nn.Module):

@@ -1,10 +1,12 @@
-import numpy as np
 import argparse
-import matplotlib.pyplot as plt
-import pandas as pd
-import util
-from collections import defaultdict
 import os
+from collections import defaultdict
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import src.util as util
 
 parser = argparse.ArgumentParser()
 parser.add_argument("problem_names", type=str, nargs="*")
